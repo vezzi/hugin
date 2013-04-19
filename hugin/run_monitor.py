@@ -27,6 +27,8 @@ class RunMonitor(object):
         runs = []
         for dump_folder in self.dump_folders:
             for fname in os.listdir(dump_folder):
+                if not os.path.isdir(os.path.join(dump_folder,fname)):
+                    continue
                 m = re.match(pattern, fname)
                 if m is not None:
                     run = {'name': fname,
