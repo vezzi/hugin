@@ -45,6 +45,14 @@ class TrelloUtils(object):
         if lst is not None:
             return lst
         return board.add_list(name)
+    
+    def get_card_on_board(self, board, name):
+        """Get a card across the entire board
+        """
+        for card in board.all_cards():
+            if card.name == name:
+                return card
+        return None
         
     def get_card(self, list, name, open=False):
         cards = list.list_cards()

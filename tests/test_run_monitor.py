@@ -4,7 +4,10 @@ import os
 import shutil
 import trello
 from hugin.run_monitor import RunMonitor
-
+import mock
+import scilifelab.illumina as illumina
+from scilifelab.bcbio.qc import FlowcellRunMetricsParser
+        
 class TestRunMonitor(unittest.TestCase):
     
     def setUp(self):
@@ -52,6 +55,9 @@ class TestRunMonitor(unittest.TestCase):
             os.mkdir(os.path.join(self.dump_folder,d))
         
         rm = RunMonitor(self.config)
+        rm.get_run_projects = mock.Mock(return_value=['J.Doe_11_01','J.Moe_12_02'])
+        rm.get_status_list = mock.Mock(return_value='First read')
+        
         rm.update_trello_board()
         lst = rm.trello.get_list(rm.trello_board,'First read')
         for run in run_folders:
@@ -63,3 +69,58 @@ class TestRunMonitor(unittest.TestCase):
                              "Created card name and run name are not equal")
             shutil.rmtree(os.path.join(self.dump_folder,run))
             
+        # Move a card to another list
+        run = {'name': run_folders[0]}
+        rm.list_runs = mock.Mock(return_value=[run])
+        rm.get_status_list.return_value = 'Index read'
+        rm.update_trello_board()
+        lst = rm.trello.get_list(rm.trello_board,'Index read')
+        card = rm.trello.get_card(lst,run['name'])
+        self.assertIsNotNone(card,
+                             "Could not locate created card for run")
+        self.assertEqual(run['name'],
+                         card.name,
+                         "Created card name and run name are not equal")
+        
+    
+    def test_get_status_list(self):
+        """Get the status list to write card to"""
+        
+        run_folder = "120106_SN12345_0144_AABC123CXX"
+        run_path = os.path.join(self.dump_folder,run_folder)
+        os.mkdir(run_path)
+        
+        run = {'name': run_folder,
+               'path': run_path}
+        
+        rm = RunMonitor(self.config)
+        rm._get_run_info_reads = mock.Mock(return_value=[{},{'IsIndexedRead': 'Y'},{'IsIndexedRead': 'Y'},{}])
+        self.assertEqual(rm.get_status_list(run),
+                         "First read",
+                         "Expected status list 'First read'")
+        
+        open(os.path.join(run_path,'Basecalling_Netcopy_complete_Read1.txt'),'w').close()
+        self.assertEqual(rm.get_status_list(run),
+                         "Index read",
+                         "Expected status list 'Index read'")
+        
+        open(os.path.join(run_path,'Basecalling_Netcopy_complete_Read2.txt'),'w').close()
+        self.assertEqual(rm.get_status_list(run),
+                         "Index read",
+                         "Expected status list 'Index read'")
+        
+        open(os.path.join(run_path,'Basecalling_Netcopy_complete_Read3.txt'),'w').close()
+        self.assertEqual(rm.get_status_list(run),
+                         "Second read",
+                         "Expected status list 'Second read'")
+        
+        open(os.path.join(run_path,'Basecalling_Netcopy_complete_Read4.txt'),'w').close()
+        self.assertEqual(rm.get_status_list(run),
+                         "Processing",
+                         "Expected status list 'Processing'")
+        
+        shutil.rmtree(run_path)
+        
+        
+        
+        

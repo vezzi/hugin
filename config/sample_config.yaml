@@ -1,0 +1,8 @@
+trello: 
+  api_key: your trello api key here,
+  token: your genereated trello token here,
+  api_secret: your trello api secret here,
+  run_tracking_board: IlluminaRuns
+
+run_folders: /path/to/run/folder1, /path/to/run/folder2
+samplesheet_folders: /path/to/samplesheet/folder1, /path/to/samplesheet/folder2
