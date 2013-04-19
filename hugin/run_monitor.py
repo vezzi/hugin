@@ -4,6 +4,8 @@ import re
 import csv
 import glob
 import scilifelab.illumina as illumina
+from scilifelab.illumina.hiseq import HiSeqSampleSheet
+from scilifelab.bcbio.qc import RunInfoParser
 from hugin.trello_utils import TrelloUtils
 
 FIRSTREAD = "First read"
@@ -52,14 +54,16 @@ class RunMonitor(object):
         if ssheet is None:
             return []
         
-        ss = illumina.hiseq.HiSeqSampleSheet(ssheet)
+        ss = HiSeqSampleSheet(ssheet)
         projects = list(set([s['SampleProject'] for s in ss]))
         return projects
     
-    def _get_run_info_reads(self, run):
-        """Silly method to be able to use mock for tests"""
-        runobj = illumina.IlluminaRun(run['path'])
-        return runobj.run_info.get('Reads',[])
+    def get_run_info(self, run):
+        """Parse the RunInfo.xml file into a dict"""
+        with open(os.path.join(run['path'],'RunInfo.xml')) as fh:
+            rip = RunInfoParser()
+            runinfo = rip.parse(fh)
+        return runinfo
     
     def get_status_list(self, run):
         """Determine the status list where the run belongs"""
@@ -76,7 +80,7 @@ class RunMonitor(object):
         
         # Get the base mask to compare with
         reads = []
-        for read in self._get_run_info_reads(run):
+        for read in self.get_run_info(run).get('Reads',[]):
             if read.get('IsIndexedRead','N') == 'Y':
                 reads.append('I')
             else:
@@ -100,10 +104,12 @@ class RunMonitor(object):
         """
         runs = self.list_runs()
         for run in runs:
+            print("Adding run {}".format(run['name']))
             lst = self.get_status_list(run)
             lst = self.trello.add_list(self.trello_board,lst)
             card = self.trello.get_card_on_board(self.trello_board,run['name'])
             if card is not None:
+                card.set_closed(False)
                 card.change_list(lst.id)
             else:
                 card = self.trello.add_card(lst, run['name'])
