@@ -12,7 +12,7 @@ FIRSTREAD = "First read"
 INDEXREAD = "Index read"
 SECONDREAD = "Second read"
 PROCESSING = "Processing"
-FINISHED = "Finished"
+UPPMAX = "Uppmax"
     
 class RunMonitor(object):
     
@@ -85,16 +85,15 @@ class RunMonitor(object):
                 reads.append('I')
             else:
                 reads.append('N')
-                
+               
+        n = len([r for r in reads if r == 'N']) 
         if last == len(reads):
+            if (n == 1 and os.path.exists(os.path.join(run['path'],'first_read_processing_completed.txt'))) or \
+                (n == 2 and os.path.exists(os.path.join(run['path'],'second_read_processing_completed.txt'))):
+                return UPPMAX
             return PROCESSING
         if reads[last] == 'I':
             return INDEXREAD
-        n=0
-        for i in range(last+1):
-            if reads[i] == 'N':
-                n += 1
-        
         if n == 1:
             return FIRSTREAD
         return SECONDREAD
