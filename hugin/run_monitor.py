@@ -123,14 +123,47 @@ class RunMonitor(object):
             lst = self.get_status_list(run)
             lst = self.trello.add_list(self.trello_board,lst)
             card = self.trello.get_card_on_board(self.trello_board,run['name'])
+            metadata = self.get_run_metadata(run)
             if card is not None:
                 card.set_closed(False)
                 card.change_list(lst.id)
+                card.fetch()
+                current = self.parse_description(card.description)
+                current.update(metadata)
+                card.set_description(self.create_description(current))
             else:
                 card = self.trello.add_card(lst, run['name'])
                 projects = self.get_run_projects(run)
-                card.set_description("- {}".format("\n- ".join(projects)))
-                
+                card.set_description(self.create_description(metadata))
+    
+    def parse_description(self, description):
+        metadata = {}
+        rows = [r.strip() for r in description.split("-")]
+        for row in rows:
+            s = row.split(":")
+            if len(s) > 1:
+                metadata[s[0]] = s[1].split(",")
+            elif len(s) > 0 and len(s[0]) > 0:
+                metadata[s[0]] = ""
+        return metadata
+    
+    def create_description(self, metadata):
+        rows = []
+        for key in sorted(metadata.keys()):
+            value = metadata[key]
+            if type(value) is list:
+                value = ",".join(value)
+            if len(value) > 0:
+                rows.append("{}:{}".format(key,value))
+            else:
+                rows.append(key)
+        return "- {}".format("\n- ".join(rows))
+            
+    def get_run_metadata(self, run):
+        metadata = {}
+        metadata['projects'] = self.get_run_projects(run)         
+        return metadata
+    
     def get_timestamp(self, logfile):
         
         TIMEFORMAT = "%Y-%m-%d %H:%M:%S.%fZ"

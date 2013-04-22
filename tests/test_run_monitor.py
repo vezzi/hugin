@@ -134,6 +134,27 @@ class TestRunMonitor(unittest.TestCase):
         
         shutil.rmtree(run_path)
         
+    def test_parse_description(self):
+        """Parse a description"""
+        
+        org_description = \
+"""- extra comment
+- project:J.Doe_11_02,J.Doe_12_01,J.Doe_13_01
+- setup:2x101bp""".strip()
+        
+        rm = RunMonitor(self.config)
+        org_metadata = rm.parse_description(org_description)
+        exp_description = rm.create_description(org_metadata)
+        exp_metadata = rm.parse_description(exp_description)
+        
+        self.assertEqual(org_description,
+                         exp_description,
+                         "The recreated card description does not match the original")
+        
+        self.assertDictEqual(org_metadata,
+                             exp_metadata,
+                             "The recreated card metadata does not match the original")
+        
         
         
         
