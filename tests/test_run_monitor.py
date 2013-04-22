@@ -5,6 +5,8 @@ import shutil
 import trello
 from hugin.run_monitor import RunMonitor
 import mock
+import time
+import datetime
 import scilifelab.illumina as illumina
 from scilifelab.bcbio.qc import FlowcellRunMetricsParser
         
@@ -90,11 +92,22 @@ class TestRunMonitor(unittest.TestCase):
         run_path = os.path.join(self.dump_folder,run_folder)
         os.mkdir(run_path)
         
+        flags = ['initial_processing_started.txt', 'initial_processing_completed.txt', 'first_read_processing_started.txt']
+        for f in flags:
+            with open(os.path.join(run_path,f),"w") as fh:
+                fh.write("{}Z".format(str(datetime.datetime.utcfromtimestamp(time.time() - 9*60*60))))
+                
         run = {'name': run_folder,
                'path': run_path}
         
         rm = RunMonitor(self.config)
-        rm._get_run_info_reads = mock.Mock(return_value=[{},{'IsIndexedRead': 'Y'},{'IsIndexedRead': 'Y'},{}])
+        rm.get_run_info = mock.Mock(return_value={'Reads': [{},{'IsIndexedRead': 'Y'},{'IsIndexedRead': 'Y'},{}]})
+        self.assertEqual(rm.get_status_list(run),
+                         "Stalled - check status",
+                         "Expected status list 'Stalled - check status'")
+        
+        os.unlink(os.path.join(run_path,flags[-1]))
+        
         self.assertEqual(rm.get_status_list(run),
                          "First read",
                          "Expected status list 'First read'")

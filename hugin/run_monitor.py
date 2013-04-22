@@ -3,6 +3,7 @@ import os
 import re
 import csv
 import glob
+import datetime
 import scilifelab.illumina as illumina
 from scilifelab.illumina.hiseq import HiSeqSampleSheet
 from scilifelab.bcbio.qc import RunInfoParser
@@ -13,6 +14,7 @@ INDEXREAD = "Index read"
 SECONDREAD = "Second read"
 PROCESSING = "Processing"
 UPPMAX = "Uppmax"
+STALLED = "Stalled - check status"
     
 class RunMonitor(object):
     
@@ -78,6 +80,20 @@ class RunMonitor(object):
             if read > last:
                 last = read
         
+        # Check for stalled flowcells
+        started_pattern = "*_processing_started.txt"
+        completed_pattern = "*_processing_completed.txt"
+        started_flags = glob.glob(os.path.join(run['path'],started_pattern))
+        completed_flags = glob.glob(os.path.join(run['path'],completed_pattern))
+        for flag in started_flags:
+            if flag.replace("_started.txt","_completed.txt") in completed_flags:
+                continue
+            started = self.get_timestamp(flag)
+            duration = datetime.datetime.utcnow() - started
+            # If the processing step has been ongoing for more than 8 hours, put it in the STALLED list
+            if duration.total_seconds() > 8*60*60: 
+                return STALLED
+            
         # Get the base mask to compare with
         reads = []
         for read in self.get_run_info(run).get('Reads',[]):
@@ -94,7 +110,7 @@ class RunMonitor(object):
             return PROCESSING
         if reads[last] == 'I':
             return INDEXREAD
-        if n == 1:
+        if len([reads[i] for i in range(last) if reads[i] == 'N']) == 0:
             return FIRSTREAD
         return SECONDREAD
         
@@ -114,4 +130,19 @@ class RunMonitor(object):
                 card = self.trello.add_card(lst, run['name'])
                 projects = self.get_run_projects(run)
                 card.set_description("- {}".format("\n- ".join(projects)))
-            
+                
+    def get_timestamp(self, logfile):
+        
+        TIMEFORMAT = "%Y-%m-%d %H:%M:%S.%fZ"
+        timestamp = ""
+        if not os.path.exists(logfile):
+            return timestamp
+        
+        with open(logfile) as fh:
+            for line in fh:
+                try:
+                    timestamp = datetime.datetime.strptime(line.strip(), TIMEFORMAT)
+                except ValueError:
+                    pass 
+        
+        return timestamp
