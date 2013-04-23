@@ -32,7 +32,8 @@ class TestRunMonitor(unittest.TestCase):
     def test_list_runs(self):
         """List run folders"""
         run_folders = ["120106_SN12345_0144_AABC123CXX",
-                       "120521_M00123_0001_AFCGHY76-KTY500"]
+                       "120521_M00123_0001_AFCGHY76-KTY500",
+                       "130423_D00134_0011_AD1Y4UACXX"]
         invalid_run_folders = ["ABC_SN123_0123_BASDC34CXX",
                                "120106_SN12345_0144_CABC123CXX",
                                "120521_K00123_0001_AFCGHY76-KTY500"]

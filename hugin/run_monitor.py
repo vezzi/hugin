@@ -27,7 +27,7 @@ class RunMonitor(object):
         
     def list_runs(self):
         """Get a list of folders matching the run folder pattern"""
-        pattern = r'(\d{6})_([SNM]+\d+)_\d+_([AB])([A-Z0-9\-]+)'
+        pattern = r'(\d{6})_([SNMD]+\d+)_\d+_([AB])([A-Z0-9\-]+)'
         runs = []
         for dump_folder in self.dump_folders:
             for fname in os.listdir(dump_folder):
