@@ -1,6 +1,7 @@
 import unittest
 import tempfile
 import os
+import yaml
 import shutil
 import trello
 from hugin.run_monitor import RunMonitor
@@ -14,17 +15,12 @@ class TestRunMonitor(unittest.TestCase):
     
     def setUp(self):
         self.dump_folder = tempfile.mkdtemp(prefix="test_run_monitor_")
-        self.config = {'trello': {'api_key': '35c3947807caa06935842db61619a1c3',
-                                  'token': '1846c76339bc24903f71a55ed522d2855fb94c148f2690c4553e50be6ea1baaf',
-                                  'api_secret': '64fafa5ca6fa0b190c7322b4166b199d0b734775ac6e8e2b9ca0077b3675dd33',
-                                  'test_board': 'test_board',
-                                  'test_board_id': '517082eaf79e031b2a001e51',
-                                  'test_list': 'test_list',
-                                  'test_card': 'test_card',
-                                  'run_tracking_board': 'test_board'
-                                  },
-                       'run_folders': self.dump_folder
-                       }
+        
+        cfile = os.path.expanduser(os.path.join("~",".hugin","hugin_test_conf.yaml"))
+        with open(cfile) as fh:
+            self.config = yaml.load(fh)
+            
+        self.config['run_folders'] = self.dump_folder
         
     def tearDown(self):
         shutil.rmtree(self.dump_folder)
