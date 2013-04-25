@@ -173,8 +173,6 @@ class RunMonitor(object):
                 projects = self.get_run_projects(run)
                 card.set_description(self.create_description(metadata))
             
-        self.send_notification(run,lst.name)
-    
     def update_trello_project_board(self):
         """Update the project cards for projects in ongoing runs
         """
