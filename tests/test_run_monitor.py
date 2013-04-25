@@ -37,6 +37,8 @@ class TestRunMonitor(unittest.TestCase):
             os.mkdir(os.path.join(self.dump_folder,d))
         
         rm = RunMonitor(self.config)
+        rm.get_run_info = mock.Mock(return_value={})
+        rm.get_run_parameters = mock.Mock(return_value={})
         runs = rm.list_runs()
         self.assertListEqual(sorted(run_folders),
                              sorted([r['name'] for r in runs]),
@@ -56,6 +58,8 @@ class TestRunMonitor(unittest.TestCase):
         rm = RunMonitor(self.config)
         rm.get_run_projects = mock.Mock(return_value=['J.Doe_11_01','J.Moe_12_02'])
         rm.get_status_list = mock.Mock(return_value='First read')
+        rm.get_run_info = mock.Mock(return_value={'Reads': [{'NumCycles': 50},{'IsIndexedRead': 'Y'},{'NumCycles': 50}]})
+        rm.get_run_parameters = mock.Mock(return_value={})
         
         rm.update_trello_board()
         lst = rm.trello.get_list(rm.trello_board,'First read')
@@ -100,8 +104,8 @@ class TestRunMonitor(unittest.TestCase):
         rm = RunMonitor(self.config)
         rm.get_run_info = mock.Mock(return_value={'Reads': [{},{'IsIndexedRead': 'Y'},{'IsIndexedRead': 'Y'},{}]})
         self.assertEqual(rm.get_status_list(run),
-                         "Stalled - check status",
-                         "Expected status list 'Stalled - check status'")
+                         "Check status",
+                         "Expected status list 'Check status'")
         
         os.unlink(os.path.join(run_path,flags[-1]))
         
@@ -152,6 +156,18 @@ class TestRunMonitor(unittest.TestCase):
                              exp_metadata,
                              "The recreated card metadata does not match the original")
         
+    def test_send_notification(self):
+        """Send an email notification"""
+        
+        rm = RunMonitor(self.config)
+        exception = None
+        try:
+            rm.send_notification({'name': "test run"},"dummy value")
+        except Exception, e: 
+            exception = e
+        
+        self.assertIsNone(exception,
+                          "Sending email raised exception {}".format(str(exception)))
         
         
         

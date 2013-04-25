@@ -9,6 +9,9 @@ from scilifelab.illumina.hiseq import HiSeqSampleSheet
 from scilifelab.bcbio.qc import RunInfoParser, RunParametersParser
 from hugin.trello_utils import TrelloUtils
 from hugin.project_monitor import ProjectMonitor
+import smtplib
+from email.mime.text import MIMEText
+import socket
 
 FIRSTREAD = "First read"
 INDEXREAD = "Index read"
@@ -16,6 +19,8 @@ SECONDREAD = "Second read"
 PROCESSING = "Processing"
 UPPMAX = "Uppmax"
 STALLED = "Check status"
+
+SENDER = "hugin@{}".format(socket.gethostname())
     
 class RunMonitor(object):
     
@@ -124,7 +129,26 @@ class RunMonitor(object):
         if len([reads[i] for i in range(last) if reads[i] == 'N']) == 0:
             return FIRSTREAD
         return SECONDREAD
+    
+    def send_notification(self, run, status):
+        """Send an email notification that a run has been moved to a list
+        """
+        recipients = self.config.get("email",{}).get("recipients","").split(",")
+        if len(recipients) == 0:
+            return
         
+        msg = MIMEText("The run {} has been moved to the '{}' list on the Trello board "\
+                       "'{}' and may need your attention on {}".format(run['name'],
+                                                                 status,
+                                                                 self.trello_board.name,
+                                                                 socket.gethostname()))
+        msg['Subject'] = "[hugin]: The run {} needs attention".format(run['name'])
+        msg['From'] = SENDER
+        msg['To'] = ",".join(recipients)
+        s = smtplib.SMTP(self.config.get("email",{}).get("smtp_host","localhost"))
+        s.sendmail(SENDER, recipients, msg.as_string())
+        s.quit()   
+    
     def update_trello_board(self):
         """Update the Trello board based on the contents of the run folder
         """
@@ -135,6 +159,8 @@ class RunMonitor(object):
             lst = self.trello.add_list(self.trello_board,lst)
             card = self.trello.get_card_on_board(self.trello_board,run['name'])
             metadata = self.get_run_metadata(run)
+            if lst.name == STALLED and (card is None or card.trello_list.name != lst.name):
+                 self.send_notification(run,lst.name)
             if card is not None:
                 card.set_closed(False)
                 card.change_list(lst.id)
@@ -146,6 +172,8 @@ class RunMonitor(object):
                 card = self.trello.add_card(lst, run['name'])
                 projects = self.get_run_projects(run)
                 card.set_description(self.create_description(metadata))
+            
+        self.send_notification(run,lst.name)
     
     def update_trello_project_board(self):
         """Update the project cards for projects in ongoing runs
