@@ -15,7 +15,7 @@ INDEXREAD = "Index read"
 SECONDREAD = "Second read"
 PROCESSING = "Processing"
 UPPMAX = "Uppmax"
-STALLED = "Stalled - check status"
+STALLED = "Check status"
     
 class RunMonitor(object):
     
