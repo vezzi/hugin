@@ -8,6 +8,7 @@ from hugin.run_monitor import RunMonitor
 def monitor(config):
     rm = RunMonitor(config)
     rm.update_trello_board()
+    rm.update_trello_project_board()
 
 def main():
     parser = argparse.ArgumentParser(description="A script that will monitor specified run folders and update a Trello board as the status of runs change")
