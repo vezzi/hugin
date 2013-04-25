@@ -91,14 +91,20 @@ class RunMonitor(object):
     
     def get_run_info(self, run):
         """Parse the RunInfo.xml file into a dict"""
-        with open(os.path.join(run['path'],'RunInfo.xml')) as fh:
+        f = os.path.join(run['path'],'RunInfo.xml')
+        if not os.path.exists(f):
+            return {}
+        with open(f) as fh:
             rip = RunInfoParser()
             runinfo = rip.parse(fh)
         return runinfo
     
     def get_run_parameters(self, run):
         """Parse the runParameters.xml file into a dict"""
-        with open(os.path.join(run['path'],'runParameters.xml')) as fh:
+        f = os.path.join(run['path'],'runParameters.xml')
+        if not os.path.exists(f):
+            return {}
+        with open(f) as fh:
             rpp = RunParametersParser()
             runparameters = rpp.parse(fh)
         return runparameters
