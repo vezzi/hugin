@@ -93,6 +93,7 @@ class ProjectMonitor(object):
         # Loop over the runs and check whether all samples and projects have been transferred to the 
         # analysis folder
         for run in runs:
+            print("Checking run {}".format(run['name']))
             ssheet = rm.get_run_samplesheet(run)
             if ssheet is None:
                 print("Could not locate samplesheet for run {}".format(run['name']))
