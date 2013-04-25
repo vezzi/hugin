@@ -6,7 +6,7 @@ import glob
 import datetime
 import scilifelab.illumina as illumina
 from scilifelab.illumina.hiseq import HiSeqSampleSheet
-from scilifelab.bcbio.qc import RunInfoParser
+from scilifelab.bcbio.qc import RunInfoParser, RunParametersParser
 from hugin.trello_utils import TrelloUtils
 from hugin.project_monitor import ProjectMonitor
 
@@ -43,6 +43,8 @@ class RunMonitor(object):
                            'instrument': m.group(2),
                            'position': m.group(3),
                            'flowcell_id': m.group(4)}
+                    run['run_info'] = self.get_run_info(run)
+                    run['run_parameters'] = self.get_run_parameters(run)
                     runs.append(run)
         return runs
 
@@ -68,6 +70,13 @@ class RunMonitor(object):
             rip = RunInfoParser()
             runinfo = rip.parse(fh)
         return runinfo
+    
+    def get_run_parameters(self, run):
+        """Parse the runParameters.xml file into a dict"""
+        with open(os.path.join(run['path'],'runParameters.xml')) as fh:
+            rpp = RunParametersParser()
+            runparameters = rpp.parse(fh)
+        return runparameters
     
     def get_status_list(self, run):
         """Determine the status list where the run belongs"""
@@ -98,7 +107,7 @@ class RunMonitor(object):
             
         # Get the base mask to compare with
         reads = []
-        for read in self.get_run_info(run).get('Reads',[]):
+        for read in run['run_info'].get('Reads',[]):
             if read.get('IsIndexedRead','N') == 'Y':
                 reads.append('I')
             else:
@@ -146,13 +155,14 @@ class RunMonitor(object):
         for run in runs:
             projects = self.get_run_projects(run)
             for project in projects:
+                print("Adding run {} to project {}".format(run['name'],project))
                 pm.add_run_to_project(project,run)
             
     def parse_description(self, description):
         metadata = {}
         rows = [r.strip() for r in description.split("-")]
         for row in rows:
-            s = row.split(":")
+            s = [s.strip() for s in row.split(":")]
             if len(s) > 1:
                 metadata[s[0]] = s[1].split(",")
             elif len(s) > 0 and len(s[0]) > 0:
@@ -166,16 +176,36 @@ class RunMonitor(object):
             if type(value) is list:
                 value = ",".join(value)
             if len(value) > 0:
-                rows.append("{}:{}".format(key,value))
+                rows.append("{}: {}".format(key,value))
             else:
                 rows.append(key)
         return "- {}".format("\n- ".join(rows))
             
     def get_run_metadata(self, run):
         metadata = {}
-        metadata['projects'] = self.get_run_projects(run)         
+        metadata['Projects'] = self.get_run_projects(run)
+        metadata['Setup'] = self.get_run_setup(run) 
+        metadata['Flowcell'] = run['run_info'].get('Flowcell','NA')
+        metadata['Instrument'] = run['run_info'].get('Instrument','NA')
+        metadata['Date'] = run['run_info'].get('Date','NA')      
+        metadata['Run mode'] = run['run_parameters'].get('RunMode','HighOutput')  
         return metadata
     
+    def get_run_setup(self, run):
+        reads = run['run_info'].get('Reads',[])
+        read_cycles = [r.get('NumCycles','?') for r in reads if r.get('IsIndexedRead','N') == 'N']
+        index_cycles = [r.get('NumCycles','?') for r in reads if r.get('IsIndexedRead','N') == 'Y']
+        nreads = len(read_cycles)
+        nindex = len(index_cycles)
+        
+        c = list(set(read_cycles))
+        if len(c) == 1:
+            setup = "{}x{}".format(str(nreads),c[0])
+        else:
+            setup = ",".join(c)
+        
+        return setup
+
     def get_timestamp(self, logfile):
         
         TIMEFORMAT = "%Y-%m-%d %H:%M:%S.%fZ"
