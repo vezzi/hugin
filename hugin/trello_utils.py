@@ -16,10 +16,10 @@ class TrelloUtils(object):
             return board.id
         return None
     
-    def get_board(self, name):
+    def get_board(self, name, open=False):
         boards = self.client.list_boards()
         for board in boards:
-            if board.name == name:
+            if board.name == name and (not open or board.closed == False):
                 return board
         return None
     

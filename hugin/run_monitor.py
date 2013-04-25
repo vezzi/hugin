@@ -8,22 +8,24 @@ import scilifelab.illumina as illumina
 from scilifelab.illumina.hiseq import HiSeqSampleSheet
 from scilifelab.bcbio.qc import RunInfoParser
 from hugin.trello_utils import TrelloUtils
+from hugin.project_monitor import ProjectMonitor
 
 FIRSTREAD = "First read"
 INDEXREAD = "Index read"
 SECONDREAD = "Second read"
 PROCESSING = "Processing"
 UPPMAX = "Uppmax"
-STALLED = "Stalled - check status"
+STALLED = "Check status"
     
 class RunMonitor(object):
     
     def __init__(self, config):
         self.trello = TrelloUtils(config)
-        self.trello_board = self.trello.get_board(config.get("trello",{}).get("run_tracking_board"))
+        self.trello_board = self.trello.get_board(config.get("trello",{}).get("run_tracking_board",None),True)
         assert self.trello_board is not None, "Could not locate run tracking board in Trello"
         self.dump_folders = [d.strip() for d in config.get("run_folders","").split(",")]
         self.samplesheet_folders = [d.strip() for d in config.get("samplesheet_folders","").split(",")]
+        self.config = config
         
     def list_runs(self):
         """Get a list of folders matching the run folder pattern"""
@@ -57,7 +59,7 @@ class RunMonitor(object):
             return []
         
         ss = HiSeqSampleSheet(ssheet)
-        projects = list(set([s['SampleProject'] for s in ss]))
+        projects = list(set([s['SampleProject'].replace("__",".") for s in ss]))
         return projects
     
     def get_run_info(self, run):
@@ -136,6 +138,16 @@ class RunMonitor(object):
                 projects = self.get_run_projects(run)
                 card.set_description(self.create_description(metadata))
     
+    def update_trello_project_board(self):
+        """Update the project cards for projects in ongoing runs
+        """
+        pm = ProjectMonitor(self.config)
+        runs = self.list_runs()
+        for run in runs:
+            projects = self.get_run_projects(run)
+            for project in projects:
+                pm.add_run_to_project(project,run)
+            
     def parse_description(self, description):
         metadata = {}
         rows = [r.strip() for r in description.split("-")]

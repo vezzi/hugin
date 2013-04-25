@@ -54,3 +54,15 @@ class TestTrelloUtils(unittest.TestCase):
                          id,
                          "Created card id did not match fetched card id")
     
+    def test_add_checklist(self):
+        """Add a checklist to a test card"""
+        board = self.trello.get_board(self.config['trello']['test_board'])
+        lst = self.trello.get_list(board,self.config['trello']['test_list'])
+        card = self.trello.add_card(lst,self.config['trello']['test_card'])
+        import pdb; pdb.set_trace()
+        chklst = card.add_checklist("test_checklist",["item1", "item2", "item3"],[True,True,False])
+        self.assertIs(type(chklst),
+                      trello.Checklist,
+                      "Did not get a Checklist object back")
+        
+    
