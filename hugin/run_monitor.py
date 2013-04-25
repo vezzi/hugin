@@ -18,6 +18,7 @@ INDEXREAD = "Index read"
 SECONDREAD = "Second read"
 PROCESSING = "Processing"
 UPPMAX = "Uppmax"
+COMPLETED = "Handed over"
 STALLED = "Check status"
 
 SENDER = "hugin@{}".format(socket.gethostname())
@@ -53,8 +54,23 @@ class RunMonitor(object):
                     runs.append(run)
         return runs
 
-    def get_run_projects(self, run):
-        """Locate and parse the samplesheet to extract projects in the run"""
+    def set_run_completed(self, run):
+        """Set the status of the run to completed"""
+        card = self.trello.get_card_on_board(self.trello_board,run['name'])
+        
+        # Skip if the card is not on the board or if it has been closed
+        if card is None:
+            return
+        card.fetch()
+        if card.closed():
+            return
+        
+        lst = self.trello.add_list(self.trello_board,COMPLETED)
+        card.change_list(lst.id)
+
+    def get_run_samplesheet(self, run):
+        """Locate and parse the samplesheet for a run"""
+        
         fname = "{}.csv".format(run.get("flowcell_id","SampleSheet"))
         ssheet = None
         for folder in self.samplesheet_folders + [run.get("path","")]:
@@ -63,9 +79,14 @@ class RunMonitor(object):
                 ssheet = f
                 break
         if ssheet is None:
-            return []
+            return None
         
-        ss = HiSeqSampleSheet(ssheet)
+        return HiSeqSampleSheet(ssheet)
+        
+    def get_run_projects(self, run):
+        """Locate and parse the samplesheet to extract projects in the run"""
+        
+        ss = self.get_run_samplesheet(run)
         projects = list(set([s['SampleProject'].replace("__",".") for s in ss]))
         return projects
     
@@ -162,6 +183,9 @@ class RunMonitor(object):
             if lst.name == STALLED and (card is None or card.trello_list.name != lst.name):
                  self.send_notification(run,lst.name)
             if card is not None:
+                # Skip if the card is in the completed list
+                if card.trello_list.name == COMPLETED:
+                    continue
                 card.set_closed(False)
                 card.change_list(lst.id)
                 card.fetch()
@@ -172,7 +196,7 @@ class RunMonitor(object):
                 card = self.trello.add_card(lst, run['name'])
                 projects = self.get_run_projects(run)
                 card.set_description(self.create_description(metadata))
-            
+    
     def update_trello_project_board(self):
         """Update the project cards for projects in ongoing runs
         """

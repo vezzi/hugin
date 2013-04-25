@@ -6,6 +6,7 @@ import scilifelab.illumina as illumina
 from scilifelab.illumina.hiseq import HiSeqSampleSheet
 from scilifelab.bcbio.qc import RunInfoParser
 from hugin.trello_utils import TrelloUtils
+from hugin.run_monitor import RunMonitor
     
 RUN_PROCESS_STEPS = ["bcbb analysis started",
                      "bcbb analysis completed",
@@ -80,6 +81,39 @@ class ProjectMonitor(object):
                 for item in chklst.items:
                     chklst.set_checklist_item(item.get('name',''),False)
 
+    def list_runs(self):
+        """List the runs in the archive folder"""
         
+        # Create a RunMonitor object but set dump_folders to archive_folders
+        rm = RunMonitor(self.config)
+        rm.dump_folders = self.archive_folders
+        rm.samplesheet_folders = []
+        runs = rm.list_runs()
+        
+        # Loop over the runs and check whether all samples and projects have been transferred to the 
+        # analysis folder
+        for run in runs:
+            ssheet = rm.get_run_samplesheet(run)
+            if ssheet is None:
+                print("Could not locate samplesheet for run {}".format(run['name']))
+                continue
+            
+            all_transferred = True
+            for sample_data in ssheet:
+                if not sample_analysis_folder(sample_data['SampleProject'].replace("__","."),
+                                              sample_data['SampleID'],
+                                              "_".join([run['date'],run['flowcell_id']])):
+                    all_transferred = False
+                    break
+            
+            if all_transferred:
+                rm.set_run_completed(run)
+                
+    def sample_analysis_folder(self, project, sample, run_id):
+        for path in self.analysis_folders:
+            if os.path.exists(os.path.join(path,project,sample,run_id)):
+                return True
+        return False
+          
     def get_project_metadata(self, project):
         return ""
