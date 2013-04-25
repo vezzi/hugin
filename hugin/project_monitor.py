@@ -6,7 +6,6 @@ import scilifelab.illumina as illumina
 from scilifelab.illumina.hiseq import HiSeqSampleSheet
 from scilifelab.bcbio.qc import RunInfoParser
 from hugin.trello_utils import TrelloUtils
-from hugin.run_monitor import RunMonitor
     
 RUN_PROCESS_STEPS = ["bcbb analysis started",
                      "bcbb analysis completed",
@@ -85,6 +84,7 @@ class ProjectMonitor(object):
         """List the runs in the archive folder"""
         
         # Create a RunMonitor object but set dump_folders to archive_folders
+        from hugin.run_monitor import RunMonitor
         rm = RunMonitor(self.config)
         rm.dump_folders = self.archive_folders
         rm.samplesheet_folders = []
