@@ -101,9 +101,9 @@ class ProjectMonitor(object):
             
             all_transferred = True
             for sample_data in ssheet:
-                if not sample_analysis_folder(sample_data['SampleProject'].replace("__","."),
-                                              sample_data['SampleID'],
-                                              "_".join([run['date'],run['flowcell_id']])):
+                if not self.sample_analysis_folder(sample_data['SampleProject'].replace("__","."),
+                                                   sample_data['SampleID'],
+                                                   "_".join([run['date'],"{}{}".format(run['position'],run['flowcell_id'])])):
                     all_transferred = False
                     break
             
