@@ -242,11 +242,11 @@ class RunMonitor(object):
                 card.set_closed(False)
                 card.change_list(lst.id)
                 current = self.parse_description(card.description)
-                current.update(metadata)
-                card.set_description(self.create_description(current))
+                metadata.update(current)
+                if cmp(metadata,current) != 0:
+                    card.set_description(self.create_description(metadata))
             else:
                 card = self.trello.add_card(lst, run['name'])
-                projects = self.get_run_projects(run)
                 card.set_description(self.create_description(metadata))
                 
             # If the card was moved to the STALLED list, send a notification                
