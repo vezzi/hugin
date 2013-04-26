@@ -186,15 +186,17 @@ class RunMonitor(object):
             lst = self.trello.add_list(self.trello_board,lst)
             card = self.trello.get_card_on_board(self.trello_board,run['name'])
             metadata = self.get_run_metadata(run)
-            if lst.name == STALLED and (card is None or card.trello_list.name != lst.name):
-                 self.send_notification(run,lst.name)
+            old_list_id = ""
             if card is not None:
+                card.fetch()
+                
                 # Skip if the card is in the completed list
-                if card.trello_list.name == COMPLETED:
+                old_list_id = card.list_id
+                if old_list_id == self.trello.get_list_id(self.trello_board,COMPLETED):
                     continue
+                    
                 card.set_closed(False)
                 card.change_list(lst.id)
-                card.fetch()
                 current = self.parse_description(card.description)
                 current.update(metadata)
                 card.set_description(self.create_description(current))
@@ -202,6 +204,10 @@ class RunMonitor(object):
                 card = self.trello.add_card(lst, run['name'])
                 projects = self.get_run_projects(run)
                 card.set_description(self.create_description(metadata))
+                
+            # If the card was  moved to the STALLED list, send a notification                
+            if lst.name == STALLED and old_list_id != lst.id:
+                self.send_notification(run,lst.name)
     
     def update_trello_project_board(self):
         """Update the project cards for projects in ongoing runs
