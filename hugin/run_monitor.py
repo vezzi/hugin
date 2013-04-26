@@ -16,11 +16,15 @@ FIRSTREAD = "First read"
 INDEXREAD = "Index read"
 SECONDREAD = "Second read"
 PROCESSING = "Processing"
-UPPMAX = "Uppmax"
+UPPMAX = "Sent to Uppmax"
 COMPLETED = "Handed over"
 STALLED = "Check status"
+ABORTED = "Aborted"
 
 SENDER = "hugin@{}".format(socket.gethostname())
+
+PER_CYCLE_MINUTES = {'RapidRun': 10,
+                     'HighOutput': 90}
     
 class RunMonitor(object):
     
@@ -123,7 +127,18 @@ class RunMonitor(object):
             if read > last:
                 last = read
         
+        # Get the base mask to compare with
+        reads = []
+        for read in run['run_info'].get('Reads',[]):
+            if read.get('IsIndexedRead','N') == 'Y':
+                reads.append(['I', int(read.get('NumCycles','0')), int(read.get('Number','0'))])
+            else:
+                reads.append(['N', int(read.get('NumCycles','0')), int(read.get('Number','0'))])
+        n = len([r for r in reads if r[0] == 'N'])
+        
         # Check for stalled flowcells
+        
+        ## Stalled in processing
         started_pattern = "*_processing_started.txt"
         completed_pattern = "*_processing_completed.txt"
         started_flags = glob.glob(os.path.join(run['path'],started_pattern))
@@ -137,23 +152,51 @@ class RunMonitor(object):
             if duration.total_seconds() > 8*60*60: 
                 return STALLED
             
-        # Get the base mask to compare with
-        reads = []
-        for read in run['run_info'].get('Reads',[]):
-            if read.get('IsIndexedRead','N') == 'Y':
-                reads.append('I')
-            else:
-                reads.append('N')
-               
-        n = len([r for r in reads if r == 'N']) 
-        if last == len(reads):
+        ## Stalled in sequencing
+        last_event_flag = os.path.join(run['path'],"Basecalling_Netcopy_complete_Read{}.txt".format(str(last)))
+        if last == 0:
+            last_event_flag = os.path.join(run['path'],"First_Base_Report.htm")
+        
+        # If the flag does not exist, use the directory itself
+        if not os.path.exists(last_event_flag):
+            last_event_flag = run['path']
+            # Set last to -1 to indicate that the first read has not yet begun
+            last = -1
+            
+        # Get creation time of the event flag
+        event_time = datetime.datetime.fromtimestamp(os.path.getmtime(last_event_flag))
+        duration = datetime.datetime.utcnow() - event_time
+        # Calculate the expected duration for the step
+        max_duration = 0
+        if last < len(reads):
+            try:
+                [cycles] = [r[1] for r in reads if r[2] == last+1]
+            except ValueError:
+                cycles = 2
+                last = 0
+            max_duration = cycles * 60 * PER_CYCLE_MINUTES[run['run_parameters'].get('RunMode','HighOutput')]
+        else:
+            # Check if processing has been completed
             if (n == 1 and os.path.exists(os.path.join(run['path'],'first_read_processing_completed.txt'))) or \
                 (n == 2 and os.path.exists(os.path.join(run['path'],'second_read_processing_completed.txt'))):
                 return UPPMAX
-            return PROCESSING
-        if reads[last] == 'I':
+            if (n == 1 and os.path.exists(os.path.join(run['path'],'first_read_processing_started.txt'))) or \
+                (n == 2 and os.path.exists(os.path.join(run['path'],'second_read_processing_started.txt'))):
+                return PROCESSING
+            # Processing should start once every hour but allow a couple of hours in case many FCs finish at the same time
+            # 6 hours should be plenty
+            max_duration = 6*60*60
+            # Do last-1 to indicate that we are still on the last read since we haven't started processing
+            last = last - 1
+        
+        # This is taking too much time, indicate that we have stalled 
+        if duration.total_seconds() > max_duration:
+            return STALLED
+        
+        # Otherwise, indicate the read we are currently sequencing
+        if reads[last][0] == 'I':
             return INDEXREAD
-        if len([reads[i] for i in range(last) if reads[i] == 'N']) == 0:
+        if len([reads[i] for i in range(last) if reads[i][0] == 'N']) == 0:
             return FIRSTREAD
         return SECONDREAD
     
@@ -190,9 +233,10 @@ class RunMonitor(object):
             if card is not None:
                 card.fetch()
                 
-                # Skip if the card is in the completed list
+                # Skip if the card is in the completed or aborted list
                 old_list_id = card.list_id
-                if old_list_id == self.trello.get_list_id(self.trello_board,COMPLETED):
+                if old_list_id == self.trello.get_list_id(self.trello_board,COMPLETED) or \
+                    old_list_id == self.trello.get_list_id(self.trello_board,ABORTED):
                     continue
                     
                 card.set_closed(False)
@@ -205,7 +249,7 @@ class RunMonitor(object):
                 projects = self.get_run_projects(run)
                 card.set_description(self.create_description(metadata))
                 
-            # If the card was  moved to the STALLED list, send a notification                
+            # If the card was moved to the STALLED list, send a notification                
             if lst.name == STALLED and old_list_id != lst.id:
                 self.send_notification(run,lst.name)
     
