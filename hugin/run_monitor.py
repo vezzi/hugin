@@ -61,11 +61,12 @@ class RunMonitor(object):
         if card is None:
             return
         card.fetch()
-        if card.closed():
+        if card.closed:
             return
         
         lst = self.trello.add_list(self.trello_board,COMPLETED)
-        card.change_list(lst.id)
+        if card.list_id != lst.id:
+            card.change_list(lst.id)
 
     def get_run_samplesheet(self, run):
         """Locate and parse the samplesheet for a run"""
