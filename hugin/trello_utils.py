@@ -51,6 +51,7 @@ class TrelloUtils(object):
         """
         for card in board.all_cards():
             if card.name == name:
+                card.fetch()
                 return card
         return None
         
@@ -58,6 +59,7 @@ class TrelloUtils(object):
         cards = list.list_cards()
         for card in cards:
             if card.name == name and (not open or not card.closed):
+                card.fetch()
                 return card
         return None
     
@@ -72,4 +74,25 @@ class TrelloUtils(object):
         if card is not None:
             return card
         return list.add_card(name,desc)
-     
+
+    def change_list(self, card, new_list, skip_list_ids=[]):
+        """Move a card to a new list if it is not already on the list or if it is not on any
+        of the lists in the optional skip_list_id list. Returns True if the card was moved or 
+        False otherwise
+        """
+        
+        if card is None:
+            return False
+        
+        # Add or get an object for the new list
+        list_obj = self.trello.add_list(self.trello_board,new_list)
+        
+        # Don't change if the card is already on the new list or if it is on a list in the skip_list_ids
+        old_list_id = card.list_id
+        if old_list_id == list_obj.id or old_list_id in skip_list_ids:
+            return False
+        
+        card.change_list(list_obj.id)
+        card.fetch()
+        return True
+         

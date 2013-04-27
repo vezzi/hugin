@@ -2,10 +2,7 @@
 import os
 import glob
 import datetime
-import scilifelab.illumina as illumina
-from scilifelab.illumina.hiseq import HiSeqSampleSheet
-from scilifelab.bcbio.qc import RunInfoParser
-from hugin.trello_utils import TrelloUtils
+from hugin.monitor import Monitor
     
 RUN_PROCESS_STEPS = ["bcbb analysis started",
                      "bcbb analysis completed",
@@ -39,15 +36,14 @@ BCBB_ANALYSIS_IN_PROGRESS = "bcbb analysis"
 BP_AND_DELIVERY_IN_PROGRESS = "Best practice and delivery"
 PROJECT_FINISHED = "Finished"
 
-class ProjectMonitor(object):
+class ProjectMonitor(Monitor):
     
     def __init__(self, config):
-        self.trello = TrelloUtils(config)
+        super.__init__(ProjectMonitor,config)
         self.trello_board = self.trello.get_board(config.get("trello",{}).get("project_tracking_board",None),True)
         assert self.trello_board is not None, "Could not locate project tracking board in Trello"
         self.archive_folders = [d.strip() for d in config.get("archive_folders","").split(",")]
         self.analysis_folders = [d.strip() for d in config.get("analysis_folders","").split(",")]
-        self.config = config
         
     def add_project_card(self, project, status=SEQUENCING_IN_PROGRESS):
         """Add a project card"""
@@ -80,41 +76,47 @@ class ProjectMonitor(object):
                 for item in chklst.items:
                     chklst.set_checklist_item(item.get('name',''),False)
 
-    def list_runs(self):
-        """List the runs in the archive folder"""
+    def get_run_status(self, run):
+        """Check if all projects and samples in a run has been transferred to the analysis folder
+        """
+        ssheet = self.get_run_samplesheet(run)
+        if ssheet is None:
+            print("Could not locate samplesheet for run {}".format(run['name']))
+            return False
         
-        # Create a RunMonitor object but set dump_folders to archive_folders
+        for sample_data in ssheet:
+            if not self.get_sample_analysis_folder(sample_data['SampleProject'].replace("__","."),
+                                                   sample_data['SampleID'],
+                                                   "_".join([run['date'],"{}{}".format(run['position'],run['flowcell_id'])])):
+                return False
+        
+        return True
+
+    def update_run_status(self):
+        """Update the status of runs on the run tracking board"""
+        
+        # Create a RunMonitor object to update the run tracking board
         from hugin.run_monitor import RunMonitor
         rm = RunMonitor(self.config)
-        rm.dump_folders = self.archive_folders
-        rm.samplesheet_folders = []
-        runs = rm.list_runs()
+        
+        self.run_folders = self.archive_folders
+        self.samplesheet_folders = []
+        runs = self.list_runs()
         
         # Loop over the runs and check whether all samples and projects have been transferred to the 
         # analysis folder
         for run in runs:
             print("Checking run {}".format(run['name']))
-            ssheet = rm.get_run_samplesheet(run)
-            if ssheet is None:
-                print("Could not locate samplesheet for run {}".format(run['name']))
-                continue
-            
-            all_transferred = True
-            for sample_data in ssheet:
-                if not self.sample_analysis_folder(sample_data['SampleProject'].replace("__","."),
-                                                   sample_data['SampleID'],
-                                                   "_".join([run['date'],"{}{}".format(run['position'],run['flowcell_id'])])):
-                    all_transferred = False
-                    break
-            
-            if all_transferred:
+            if self.get_run_status(run):
                 rm.set_run_completed(run)
                 
-    def sample_analysis_folder(self, project, sample, run_id):
-        for path in self.analysis_folders:
-            if os.path.exists(os.path.join(path,project,sample,run_id)):
-                return True
-        return False
+    def get_sample_analysis_folder(self, project, sample, run_id):
+        sample_dir = os.path.join(project,sample,run_id)
+        for analysis_folder in self.analysis_folders:
+            path = os.path.join(analysis_folder,sample_dir)
+            if os.path.exists(path):
+                return path
+        return None
           
     def get_project_metadata(self, project):
         return ""
