@@ -3,6 +3,15 @@ trello:
   token: your genereated trello token here,
   api_secret: your trello api secret here,
   run_tracking_board: IlluminaRuns
+  project_tracking_board: Projects
 
 run_folders: /path/to/run/folder1, /path/to/run/folder2
 samplesheet_folders: /path/to/samplesheet/folder1, /path/to/samplesheet/folder2
+archive_folders: /path/to/archive/folder1, /path/to/archive/folder2
+analysis_folders: /path/to/analysis/folder1, /path/to/analysis/folder2
+
+email:
+  default: a.default@email.here.com
+  trello_username_here: user@email.here.com
+  smtp_host: stmp.host.here.com
+  

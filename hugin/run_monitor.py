@@ -39,13 +39,6 @@ class RunMonitor(Monitor):
         if card.list_id != lst.id:
             card.change_list(lst.id)
 
-    def get_run_projects(self, run):
-        """Locate and parse the samplesheet to extract projects in the run"""
-        
-        ss = self.get_run_samplesheet(run)
-        projects = list(set([s['SampleProject'].replace("__",".") for s in ss]))
-        return projects
-    
     def get_status_list(self, run):
         """Determine the status list where the run belongs"""
         
@@ -183,7 +176,7 @@ class RunMonitor(Monitor):
       
     def get_run_metadata(self, run):
         metadata = {}
-        metadata['Projects'] = self.get_run_projects(run)
+        metadata['Projects'] = run['projects']
         metadata['Setup'] = self.get_run_setup(run) 
         metadata['Flowcell'] = run['run_info'].get('Flowcell','NA')
         metadata['Instrument'] = run['run_info'].get('Instrument','NA')

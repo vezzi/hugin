@@ -35,6 +35,10 @@ SEQUENCING_IN_PROGRESS = "Sequencing"
 BCBB_ANALYSIS_IN_PROGRESS = "bcbb analysis"
 BP_AND_DELIVERY_IN_PROGRESS = "Best practice and delivery"
 PROJECT_FINISHED = "Finished"
+STALLED = "Check status"
+
+# The number of seconds we allow the bcbb logfile to be inactive before we flag the project as stalled
+BCBB_LOGFILE_INACTIVE = 60*60*3
 
 class ProjectMonitor(Monitor):
     
@@ -66,9 +70,9 @@ class ProjectMonitor(Monitor):
         
         card = self.add_project_card(project)
         # Fetch the checklists on this card
-        card.fetch()
-        if run['name'] not in [chklst.name for chklst in card.checklists]:
-            card.add_checklist(run['name'], RUN_PROCESS_STEPS)
+        card.fetch() 
+        if run['short_name'] not in [chklst.name for chklst in card.checklists]:
+            card.add_checklist(run['short_name'], RUN_PROCESS_STEPS)
         
         # Make sure to uncheck any incompatible completed events
         for chklst in card.checklists:
@@ -107,7 +111,18 @@ class ProjectMonitor(Monitor):
         # analysis folder
         for run in runs:
             print("Checking run {}".format(run['name']))
-            if self.get_run_status(run):
+            run_complete = True
+            for project in self.get_run_projects(run):
+                project_complete = True
+                for sample in self.get_run_project_samples(run,project):
+                    if get_sample_analysis_folder(project, sample, run['short_name']) is None:
+                        project_complete = False
+                if project_complete:
+                    self.set_run_project_started(run, project)
+                else:
+                    run_complete = False
+                    
+            if run_complete:
                 rm.set_run_completed(run)
                 
     def get_sample_analysis_folder(self, project, sample, run_id):
@@ -120,3 +135,25 @@ class ProjectMonitor(Monitor):
           
     def get_project_metadata(self, project):
         return ""
+
+    def list_samples(self, path):
+        """Get a list of the samples in a project folder"""
+        pattern = r'.*'
+
+    def list_projects(self):
+        """Get a list of the projects in the analysis folder"""
+        
+        pattern = r'[A-Za-z\._]+\d{2}_\d{2,}'
+        projects = []
+        for analysis_folder in self.analysis_folders:
+            for fname in os.listdir(analysis_folder):
+                m = re.match(pattern, fname)
+                path = os.path.join(analysis_folder,fname)
+                if not (m and os.path.isdir(path)):
+                    continue
+                project = {'path': path,
+                           'name': fname,
+                           'samples': self.list_samples(path)
+                           }
+                project['flowcells'] = list(set([self.list_flowcells(sample) for sample in project['samples']]))
+
