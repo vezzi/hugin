@@ -136,7 +136,15 @@ class Monitor(object):
         description = self.dict_to_description(description)
         card.set_description(description)
         return True
-      
+    
+    def set_due(self, card, due):
+        """Set or update the due date on the card if necessary"""
+        
+        old_due = card.due
+        new_due = "{}Z".format(due.isoformat())
+        if old_due is None or old_due != new_due:
+            card.set_due(due) 
+    
     def description_to_dict(self, description):
         metadata = {}
         rows = [r.strip() for r in description.split("-")]

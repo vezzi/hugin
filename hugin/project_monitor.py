@@ -103,30 +103,26 @@ class ProjectMonitor(Monitor):
         from hugin.run_monitor import RunMonitor
         rm = RunMonitor(self.config)
         
-        self.run_folders = self.archive_folders
-        self.samplesheet_folders = []
-        runs = self.list_runs()
+        rm.run_folders = self.archive_folders
+        rm.samplesheet_folders = []
         
         # Loop over the runs and check whether all samples and projects have been transferred to the 
         # analysis folder
-        for run in runs:
+        for run in rm.list_runs():
             print("Checking run {}".format(run['name']))
-            run_complete = True
-            for project in self.get_run_projects(run):
-                project_complete = True
-                for sample in self.get_run_project_samples(run,project):
-                    if get_sample_analysis_folder(project, sample, run['short_name']) is None:
-                        project_complete = False
-                if project_complete:
-                    self.set_run_project_started(run, project)
-                else:
-                    run_complete = False
-                    
-            if run_complete:
+            if self.get_run_status(run):
                 rm.set_run_completed(run)
         
-    def set_run_project_started(self, run, project):
-        pass
+    def set_card_checklist_item(self, card, chklist_name, item_name, state):
+        """Mark the bcbb analysis as started for a project and run"""
+        try:
+            [chklist] = [c for c in card.checklists if c.name == chklist_name]
+            
+        except ValueError:
+            return None
+        
+        
+        
       
     def get_sample_analysis_folder(self, project, sample, run_id):
         sample_dir = os.path.join(project,sample,run_id)
@@ -139,24 +135,60 @@ class ProjectMonitor(Monitor):
     def get_project_metadata(self, project):
         return ""
 
+    def _list_folders(self, pattern, path):
+        folders = []
+        for fname in os.listdir(path):
+            m = re.match(pattern,fname)
+            fpath = os.path.join(path,fname)
+            if not (m and os.path.exists(fpath) and os.path.isdir(fpath)):
+                continue
+            folders.append(fpath)
+        return folders
+        
+    def list_flowcells(self, path):
+        """Get a list of the flowcells in a sample folder"""
+        pattern = r'(\d{6})_([AB])([A-Z0-9\-]+)'
+        fcs = []
+        for path in self._list_folders(pattern,path):
+            m = re.match(pattern,os.path.basename(path))
+            if not m or len(m.groups()) != 3:
+                continue
+            try:
+                datetime.datetime.strptime(m.group(1),"%y%m%d")
+            except ValueError:
+                continue
+            
+            fc = {'path': path,
+                  'name': os.path.basename(path),
+                  'date': m.group(1),
+                  'position': m.group(2),
+                  'flowcell_id': m.group(3)}
+            fcs.append(fc)
+        return fcs
+
     def list_samples(self, path):
         """Get a list of the samples in a project folder"""
         pattern = r'.*'
-
+        samples = []
+        for path in self._list_folders(pattern,path):
+            sample = {'path': path,
+                      'name': os.path.basename(path),
+                      'flowcells': self.list_flowcells(path)}
+            if len(sample['flowcells']) == 0:
+                continue
+            samples.append(sample)
+        return samples
+            
     def list_projects(self):
         """Get a list of the projects in the analysis folder"""
         
         pattern = r'[A-Za-z\._]+\d{2}_\d{2,}'
         projects = []
         for analysis_folder in self.analysis_folders:
-            for fname in os.listdir(analysis_folder):
-                m = re.match(pattern, fname)
-                path = os.path.join(analysis_folder,fname)
-                if not (m and os.path.isdir(path)):
-                    continue
+            for path in self._list_folders(pattern,analysis_folder):
                 project = {'path': path,
-                           'name': fname,
+                           'name': os.path.basename(path),
                            'samples': self.list_samples(path)
                            }
-                project['flowcells'] = list(set([self.list_flowcells(sample) for sample in project['samples']]))
-
+                projects.append(project)
+        return projects

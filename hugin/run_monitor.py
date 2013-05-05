@@ -244,7 +244,7 @@ class RunMonitor(Monitor):
             # Gather the information on the run and update the description on the card as necessary
             metadata = self.get_run_metadata(run)
             self.set_description(card,metadata,True)
-            card.set_due(due)
+            self.set_due(card,due)
             
             # If the card was moved to the STALLED list, send a notification                
             if status == STALLED and was_moved:
