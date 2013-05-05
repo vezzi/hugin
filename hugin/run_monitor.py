@@ -63,7 +63,7 @@ class RunMonitor(Monitor):
                 max_duration = 2 * cycle_duration
             elif step == INDEXREAD:
                 max_duration = max(index_cycles) * cycle_duration
-            elif setp == FIRSTREAD:
+            elif step == FIRSTREAD:
                 max_duration = read_cycles[0] * cycle_duration
             else:
                 max_duration = read_cycles[1] * cycle_duration
@@ -82,16 +82,16 @@ class RunMonitor(Monitor):
         treads = len([r for r in reads if r.get("IsIndexedRead","N") == "N"])
         
         # Get the highest file flag
-        last_flag = run['path']
+        last_event_flag = run['path']
         for f in status_flags:
             f = os.path.join(run['path'],f)
             if os.path.exists(f):
-                last_flag = f
+                last_event_flag = f
             else:
                 break
          
         try: 
-            flag_index = status_flags.index(os.path.basename(last_flag))
+            flag_index = status_flags.index(os.path.basename(last_event_flag))
         except ValueError:
             flag_index = -1
         
@@ -101,7 +101,7 @@ class RunMonitor(Monitor):
         # first base report has not yet appeared
         if flag_index < 0:
             status = FIRSTREAD
-            due = get_due_datetime(self, run, "Pre-seq", started=datetime.datetime.fromtimestamp(os.path.getmtime(last_event_flag)))
+            due = self.get_due_datetime(run, "Pre-seq", started=datetime.datetime.fromtimestamp(os.path.getmtime(last_event_flag)))
         else:
             # sequencing has finished
             if flag_index == len(reads):
@@ -129,7 +129,7 @@ class RunMonitor(Monitor):
                         status = SECONDREAD
 
             # get the expected due date
-            due = get_due_datetime(self, run, status, started=datetime.datetime.fromtimestamp(os.path.getmtime(last_event_flag)))
+            due = self.get_due_datetime(run, status, started=datetime.datetime.fromtimestamp(os.path.getmtime(last_event_flag)))
         
         return status, due
 
