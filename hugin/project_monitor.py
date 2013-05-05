@@ -43,7 +43,7 @@ BCBB_LOGFILE_INACTIVE = 60*60*3
 class ProjectMonitor(Monitor):
     
     def __init__(self, config):
-        super.__init__(ProjectMonitor,config)
+        super(ProjectMonitor, self).__init__(config)
         self.trello_board = self.trello.get_board(config.get("trello",{}).get("project_tracking_board",None),True)
         assert self.trello_board is not None, "Could not locate project tracking board in Trello"
         self.archive_folders = [d.strip() for d in config.get("archive_folders","").split(",")]

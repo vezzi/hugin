@@ -85,7 +85,7 @@ class TrelloUtils(object):
             return False
         
         # Add or get an object for the new list
-        list_obj = self.trello.add_list(self.trello_board,new_list)
+        list_obj = self.add_list(card.client.get_board(card.board_id),new_list)
         
         # Don't change if the card is already on the new list or if it is on a list in the skip_list_ids
         old_list_id = card.list_id
