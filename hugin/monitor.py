@@ -140,10 +140,15 @@ class Monitor(object):
     def set_due(self, card, due):
         """Set or update the due date on the card if necessary"""
         
-        old_due = card.due
-        new_due = "{}Z".format(due.isoformat())
-        if old_due is None or old_due != new_due:
-            card.set_due(due) 
+        try:
+            old_due = datetime.datetime.strptime(card.due,"%Y-%m-%dT%X.%fZ")
+            # Skip updating due time if the time difference is less than one minute
+            if abs((due - old_due).total_seconds()) < 60:
+                return
+        except:
+            pass 
+            
+        card.set_due(due) 
     
     def description_to_dict(self, description):
         metadata = {}
