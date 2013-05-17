@@ -121,9 +121,6 @@ class ProjectMonitor(Monitor):
         except ValueError:
             return None
         
-        
-        
-      
     def get_sample_analysis_folder(self, project, sample, run_id):
         sample_dir = os.path.join(project,sample,run_id)
         for analysis_folder in self.analysis_folders:

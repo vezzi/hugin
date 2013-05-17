@@ -35,9 +35,14 @@ class Monitor(object):
                            'position': m.group(3),
                            'flowcell_id': m.group(4),
                            'short_name': "{}_{}{}".format(m.group(1),m.group(3),m.group(4))}
+                    run['technology']: 'MiSeq' if self.is_miseq_run(run) else 'HiSeq',
                     run['run_info'] = self.get_run_info(run)
                     run['run_parameters'] = self.get_run_parameters(run)
+                    run['samplesheet'] = self.get_run_samplesheet(run)
                     run['projects'] = self.get_run_projects(run)
+                    # Don't track MiSeq runs that are not production, qc or applications
+                    if self.is_miseq_run(run) and len([d for d in self.get_samplesheet_descriptions(run) if d.lowercase() in ["qc","production","applications"]]) == 0:
+                        continue
                     runs.append(run)
         return runs
 
@@ -45,6 +50,10 @@ class Monitor(object):
         """Determine whether this is a MiSeq run, from the flowcell-id format
         """
         return not run['flowcell_id'].endswith("XX")
+
+    def get_samplesheet_descriptions(self, run):
+        """Return the set of descriptions in the samplesheet"""
+        return list(set([s['Description'] for s in ss]))
 
     def get_run_info(self, run):
         """Parse the RunInfo.xml file into a dict"""
@@ -84,14 +93,14 @@ class Monitor(object):
     def get_run_projects(self, run):
         """Locate and parse the samplesheet to extract projects in the run"""
         
-        ss = self.get_run_samplesheet(run)
+        ss = run['samplesheet']
         projects = list(set([s['SampleProject'].replace("__",".") for s in ss]))
         return projects
            
     def get_run_project_samples(self, run, project):
         """Locate and parse the samplesheet to extract samples for a project in the run"""
         
-        ss = self.get_run_samplesheet(run)
+        ss = run['samplesheet']
         samples = list(set([s['SampleID'].replace("__",".") for s in ss if s['SampleProject'].replace("__",".") == project]))
         return samples
            
