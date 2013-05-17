@@ -53,7 +53,7 @@ class Monitor(object):
 
     def get_samplesheet_descriptions(self, run):
         """Return the set of descriptions in the samplesheet"""
-        return list(set([s['Description'] for s in ss]))
+        return list(set([s['Description'] for s in ss])) if ss else []
 
     def get_run_info(self, run):
         """Parse the RunInfo.xml file into a dict"""
@@ -94,14 +94,14 @@ class Monitor(object):
         """Locate and parse the samplesheet to extract projects in the run"""
         
         ss = run['samplesheet']
-        projects = list(set([s['SampleProject'].replace("__",".") for s in ss]))
+        projects = list(set([s['SampleProject'].replace("__",".") for s in ss])) if ss else []
         return projects
            
     def get_run_project_samples(self, run, project):
         """Locate and parse the samplesheet to extract samples for a project in the run"""
         
         ss = run['samplesheet']
-        samples = list(set([s['SampleID'].replace("__",".") for s in ss if s['SampleProject'].replace("__",".") == project]))
+        samples = list(set([s['SampleID'].replace("__",".") for s in ss if s['SampleProject'].replace("__",".") == project])) if ss else []
         return samples
            
     def send_notification(self, subject, msg, users=[]):
