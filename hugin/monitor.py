@@ -20,7 +20,7 @@ class Monitor(object):
 
     def list_runs(self):
         """Get a list of folders matching the run folder pattern"""
-        pattern = r'(\d{6})_([SNMD]+\d+)_\d+_([AB])([A-Z0-9\-]+)'
+        pattern = r'(\d{6})_([SNMD]+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
         runs = []
         for dump_folder in self.run_folders:
             for fname in os.listdir(dump_folder):
@@ -40,6 +40,11 @@ class Monitor(object):
                     run['projects'] = self.get_run_projects(run)
                     runs.append(run)
         return runs
+
+    def is_miseq_run(self, run):
+        """Determine whether this is a MiSeq run, from the flowcell-id format
+        """
+        return not run['flowcell_id'].endswith("XX")
 
     def get_run_info(self, run):
         """Parse the RunInfo.xml file into a dict"""

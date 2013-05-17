@@ -65,4 +65,7 @@ class TestTrelloUtils(unittest.TestCase):
                       trello.Checklist,
                       "Did not get a Checklist object back")
         
+        chklst.set_checklist_item('item2',False)
+
+        
     

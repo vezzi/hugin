@@ -16,7 +16,8 @@ STALLED = "Check status"
 ABORTED = "Aborted"
 
 PER_CYCLE_MINUTES = {'RapidRun': 10,
-                     'HighOutput': 90}
+                     'HighOutput': 90,
+                     'MiSeq': 5}
   
 class RunMonitor(Monitor):
     
@@ -55,7 +56,7 @@ class RunMonitor(Monitor):
         # sequencing steps
         else:
             # Get the expected length of a cycle in seconds
-            cycle_duration = 60 * PER_CYCLE_MINUTES[run['run_parameters'].get('RunMode','HighOutput')]
+            cycle_duration = 60 * PER_CYCLE_MINUTES[run['run_parameters'].get('RunMode','HighOutput' if not self.is_miseq_run(run) else 'MiSeq')]
             reads = run['run_info'].get('Reads',[])
             index_cycles = [int(r.get('NumCycles','0')) for r in reads if r.get('IsIndexedRead','N') == 'Y']
             read_cycles = [int(r.get('NumCycles','0')) for r in reads if r.get('IsIndexedRead','N') == 'N']
@@ -101,7 +102,7 @@ class RunMonitor(Monitor):
         # first base report has not yet appeared
         if flag_index < 0:
             status = FIRSTREAD
-            due = self.get_due_datetime(run, "Pre-seq", started=datetime.datetime.fromtimestamp(os.path.getmtime(last_event_flag)))
+            due = self.get_due_datetime(run, "Pre-seq" if not self.is_miseq_run(run) else status, started=datetime.datetime.fromtimestamp(os.path.getmtime(last_event_flag)))
         else:
             # sequencing has finished
             if flag_index == len(reads):
@@ -133,91 +134,6 @@ class RunMonitor(Monitor):
         
         return status, due
 
-   
-#            
-#        
-#        pattern = os.path.join(run['path'],'Basecalling_Netcopy_complete_Read*.txt')
-#        rpat = r'Basecalling_Netcopy_complete_Read(\d).txt'
-#        last = 0
-#        for flag in glob.glob(pattern):
-#            m = re.match(rpat,os.path.basename(flag))
-#            read = int(m.group(1))
-#            if read > last:
-#                last = read
-#        
-#        # Get the base mask to compare with
-#        reads = []
-#        for read in run['run_info'].get('Reads',[]):
-#            if read.get('IsIndexedRead','N') == 'Y':
-#                reads.append(['I', int(read.get('NumCycles','0')), int(read.get('Number','0'))])
-#            else:
-#                reads.append(['N', int(read.get('NumCycles','0')), int(read.get('Number','0'))])
-#        n = len([r for r in reads if r[0] == 'N'])
-#        
-#        # Check for stalled flowcells
-#        
-#        ## Stalled in processing
-#        started_pattern = "*_processing_started.txt"
-#        completed_pattern = "*_processing_completed.txt"
-#        started_flags = glob.glob(os.path.join(run['path'],started_pattern))
-#        completed_flags = glob.glob(os.path.join(run['path'],completed_pattern))
-#        for flag in started_flags:
-#            if flag.replace("_started.txt","_completed.txt") in completed_flags:
-#                continue
-#            started = self.get_timestamp(flag)
-#            duration = datetime.datetime.utcnow() - started
-#            # If the processing step has been ongoing for more than 8 hours, put it in the STALLED list
-#            if duration.total_seconds() > 8*60*60: 
-#                return STALLED
-#            
-#        ## Stalled in sequencing
-#        last_event_flag = os.path.join(run['path'],"Basecalling_Netcopy_complete_Read{}.txt".format(str(last)))
-#        if last == 0:
-#            last_event_flag = os.path.join(run['path'],"First_Base_Report.htm")
-#        
-#        # If the flag does not exist, use the directory itself
-#        if not os.path.exists(last_event_flag):
-#            last_event_flag = run['path']
-#            # Set last to -1 to indicate that the first read has not yet begun
-#            last = -1
-#            
-#        # Get creation time of the event flag
-#        event_time = datetime.datetime.fromtimestamp(os.path.getmtime(last_event_flag))
-#        duration = datetime.datetime.utcnow() - event_time
-#        # Calculate the expected duration for the step
-#        max_duration = 0
-#        if last < len(reads):
-#            try:
-#                [cycles] = [r[1] for r in reads if r[2] == last+1]
-#            except ValueError:
-#                cycles = 2
-#                last = 0
-#            max_duration = cycles * 60 * PER_CYCLE_MINUTES[run['run_parameters'].get('RunMode','HighOutput')]
-#        else:
-#            # Check if processing has been completed
-#            if (n == 1 and os.path.exists(os.path.join(run['path'],'first_read_processing_completed.txt'))) or \
-#                (n == 2 and os.path.exists(os.path.join(run['path'],'second_read_processing_completed.txt'))):
-#                return UPPMAX
-#            if (n == 1 and os.path.exists(os.path.join(run['path'],'first_read_processing_started.txt'))) or \
-#                (n == 2 and os.path.exists(os.path.join(run['path'],'second_read_processing_started.txt'))):
-#                return PROCESSING
-#            # Processing should start once every hour but allow a couple of hours in case many FCs finish at the same time
-#            # 6 hours should be plenty
-#            max_duration = 6*60*60
-#            # Do last-1 to indicate that we are still on the last read since we haven't started processing
-#            last = last - 1
-#        
-#        # This is taking too much time, indicate that we have stalled 
-#        if duration.total_seconds() > max_duration:
-#            return STALLED
-#        
-#        # Otherwise, indicate the read we are currently sequencing
-#        if reads[last][0] == 'I':
-#            return INDEXREAD
-#        if len([reads[i] for i in range(last) if reads[i][0] == 'N']) == 0:
-#            return FIRSTREAD
-#        return SECONDREAD
-#    
     def update_trello_board(self):
         """Update the Trello board based on the contents of the run folder
         """
@@ -280,7 +196,7 @@ class RunMonitor(Monitor):
         metadata['Flowcell'] = run['run_info'].get('Flowcell','NA')
         metadata['Instrument'] = run['run_info'].get('Instrument','NA')
         metadata['Date'] = run['run_info'].get('Date','NA')      
-        metadata['Run mode'] = run['run_parameters'].get('RunMode','HighOutput')  
+        metadata['Run mode'] = run['run_parameters'].get('RunMode','HighOutput' if not self.is_miseq_run(run) else 'MiSeq')  
         return metadata
     
     def get_run_setup(self, run):

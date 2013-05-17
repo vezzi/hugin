@@ -147,7 +147,7 @@ class ProjectMonitor(Monitor):
         
     def list_flowcells(self, path):
         """Get a list of the flowcells in a sample folder"""
-        pattern = r'(\d{6})_([AB])([A-Z0-9\-]+)'
+        pattern = r'(\d{6})_([AB]?)([A-Z0-9\-]+)'
         fcs = []
         for path in self._list_folders(pattern,path):
             m = re.match(pattern,os.path.basename(path))
