@@ -41,7 +41,7 @@ class Monitor(object):
                     run['samplesheet'] = self.get_run_samplesheet(run)
                     run['projects'] = self.get_run_projects(run)
                     # Don't track MiSeq runs that are not production, qc or applications
-                    if self.is_miseq_run(run) and len([d for d in self.get_samplesheet_descriptions(run) if d.lowercase() in ["qc","production","applications"]]) == 0:
+                    if self.is_miseq_run(run) and len([d for d in self.get_samplesheet_descriptions(run) if d.lower() in ["qc","production","applications"]]) == 0:
                         continue
                     runs.append(run)
         return runs
@@ -53,6 +53,7 @@ class Monitor(object):
 
     def get_samplesheet_descriptions(self, run):
         """Return the set of descriptions in the samplesheet"""
+        ss = run['samplesheet']
         return list(set([s['Description'] for s in ss])) if ss else []
 
     def get_run_info(self, run):
