@@ -35,7 +35,7 @@ class Monitor(object):
                            'position': m.group(3),
                            'flowcell_id': m.group(4),
                            'short_name': "{}_{}{}".format(m.group(1),m.group(3),m.group(4))}
-                    run['technology']: 'MiSeq' if self.is_miseq_run(run) else 'HiSeq',
+                    run['technology'] = 'MiSeq' if self.is_miseq_run(run) else 'HiSeq'
                     run['run_info'] = self.get_run_info(run)
                     run['run_parameters'] = self.get_run_parameters(run)
                     run['samplesheet'] = self.get_run_samplesheet(run)
