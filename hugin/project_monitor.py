@@ -48,6 +48,7 @@ class ProjectMonitor(Monitor):
         assert self.trello_board is not None, "Could not locate project tracking board in Trello"
         self.archive_folders = [d.strip() for d in config.get("archive_folders","").split(",")]
         self.analysis_folders = [d.strip() for d in config.get("analysis_folders","").split(",")]
+        self.samplesheet_folders = [d.strip() for d in config.get("samplesheet_folders","").split(",")]
         
     def add_project_card(self, project, status=SEQUENCING_IN_PROGRESS):
         """Add a project card"""

@@ -15,9 +15,9 @@ COMPLETED = "Handed over"
 STALLED = "Check status"
 ABORTED = "Aborted"
 
-PER_CYCLE_MINUTES = {'RapidRun': 10,
-                     'HighOutput': 90,
-                     'MiSeq': 5}
+PER_CYCLE_MINUTES = {'RapidRun': 12,
+                     'HighOutput': 100,
+                     'MiSeq': 6}
   
 class RunMonitor(Monitor):
     
