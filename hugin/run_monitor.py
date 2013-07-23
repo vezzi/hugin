@@ -146,8 +146,10 @@ class RunMonitor(Monitor):
             print("Adding run {}".format(run['name']))
             status, due = self.get_status_due(run)
             
-            # If due time has passed, set status to stalled
-            if due < datetime.datetime.utcnow():
+            # If due time has passed and didn't find all status files, set status to stalled.
+            # if status == UPPMAX means that the processing has finished, and should have more
+            # priority than due date
+            if due < datetime.datetime.utcnow() and status != UPPMAX:
                 status = STALLED
                 
             card = self.trello.get_card_on_board(self.trello_board,run['name'])
