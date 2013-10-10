@@ -135,14 +135,19 @@ class GDocsUpdater(rm.RunMonitor):
     def _get_gdocs_run_projects(self, wsheet, header_offset):
         
         # Get the cell data
-        run_projects = []
+        run_projects = {}
         rows = self.gdcon.get_cell_content(wsheet,header_offset,1,0,6)
         for row in rows:
             if len(str(row[0])) == 0:
                 continue
-            run_projects.append([str(r) for r in row])
+            data = [str(r) for r in row]
+            key = "{}{}".format(data[0],data[1])
+            if key in run_projects:
+                continue
+            run_projects[key] = data
         
-        return run_projects
+        # Only return unique rows
+        return run_projects.values()
         
     def update_gdocs(self):
         
@@ -167,13 +172,21 @@ class GDocsUpdater(rm.RunMonitor):
             # Find the row index of the run in the coming tab
             row_index = self.gdcon.get_row_index(self.coming,run[0:2],COMING_HEADER_OFFSET)
             # Get the data from the coming tab, add it to an empty row in the ongoing tab and replace it with empty values
-            row_data = self.gdcon.get_cell_content(self.coming,row_index,1,row_index,0)
-            self.update_empty_row(self.ongoing,row_data,ONGOING_HEADER_OFFSET,True)
-            self.gdcon.update_row(self.coming,row_index,["" for i in xrange(len(row_data))])
+            row_data = self.gdcon.get_cell_content(self.coming,row_index,0,row_index,0)
+            self.update_empty_row(self.ongoing,row_data[0],ONGOING_HEADER_OFFSET,True)
+            self.gdcon.update_row(self.coming,row_index,["" for i in xrange(len(row_data[0]))])
+    
+        def last_name(data):
+            pcs = data[1].split('.')
+            if len(pcs) == 1:
+                return pcs[0]
+            return "".join(pcs[1:])
     
         # Lastly, update the application and type fields in gdocs if they are empty
         for wsheet, offset in [(self.coming, COMING_HEADER_OFFSET), (self.ongoing, ONGOING_HEADER_OFFSET)]:
-            for run in self._get_gdocs_run_projects(wsheet,offset):
+            # Print a reader-friendly text to stdout
+            print("{}\n{}\n".format(wsheet.title.text,"".join(['-' for i in xrange(len(wsheet.title.text))])))
+            for run in sorted(self._get_gdocs_run_projects(wsheet,offset), key=last_name):
                 if len(run) < 4:
                     continue
                 if run[2] == "" or run[3] == "":
@@ -184,20 +197,31 @@ class GDocsUpdater(rm.RunMonitor):
                         run[3] = tp
                 row_index = self.gdcon.get_row_index(wsheet,run[0:2],offset)
                 self.gdcon.update_row(wsheet,row_index,run[0:4])
+                
+                print("{} - {}{}".format(run[1],"{} - ".format(run[3]) if len(run[3]) > 0 else "",run[4]))
+                print("{}{}\n".format("{}\n".format(run[2]) if len(run[2]) > 0 else "",run[0]))
             
     def update_empty_row(self, wsheet, data, offset, merged=False):
         """Update the next empty row after the specified offset with the supplied data
         """
         updated = False
-        row_index = self.gdcon.get_row_index(wsheet,["" for i in xrange(len(data))],offset)
-        if row_index > 0:
-            updated = self.gdcon.update_row(wsheet,row_index,data)
-            # FIXME: do this better.. if the row is merged, write the same data to the second "hidden" row
+        # Require two empty rows in succession
+        row_index = offset
+        r2 = row_index
+        while r2-row_index != 1:
+            row_index = self.gdcon.get_row_index(wsheet,["" for i in xrange(len(data))],r2)
+            # If we're writing a merged row, we need two consecutive empty rows
+            if merged:
+                r2 = self.gdcon.get_row_index(wsheet,["" for i in xrange(len(data))],row_index+1)
+            else:
+                r2 = row_index+1
+            
+        assert row_index > 0, "***ERROR*** No more rows left in spreadsheet"
+        updated = self.gdcon.update_row(wsheet,row_index,data)
+        # FIXME: do this better.. if the row is merged, write the same data to the second "hidden" row
+        if merged:
             self.gdcon.update_row(wsheet,row_index+1,data)
-        # FIXME: Add new rows if needed
-        else:
-            pass
-        
+            
         return updated
         
     def run_project_match(self, needle, haystack):
