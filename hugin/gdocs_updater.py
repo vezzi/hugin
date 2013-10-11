@@ -7,7 +7,7 @@ from scilifelab.google.google_docs import SpreadSheet
 from scilifelab.google import get_credentials 
 
 # The row where the actual user-entered data starts in the worksheets
-ONGOING_HEADER_OFFSET = 7
+ONGOING_HEADER_OFFSET = 5
 COMING_HEADER_OFFSET = 2
 FINISHED_HEADER_OFFSET = 3
 
@@ -167,13 +167,13 @@ class GDocsUpdater(rm.RunMonitor):
         for run in trello_ongoing:
             status = self.run_project_match(run,gdocs_coming)
             if status == 0:
-                self.update_empty_row(self.ongoing,run,ONGOING_HEADER_OFFSET,True)
+                self.update_empty_row(self.ongoing,run,ONGOING_HEADER_OFFSET)
                 continue
             # Find the row index of the run in the coming tab
             row_index = self.gdcon.get_row_index(self.coming,run[0:2],COMING_HEADER_OFFSET)
             # Get the data from the coming tab, add it to an empty row in the ongoing tab and replace it with empty values
             row_data = self.gdcon.get_cell_content(self.coming,row_index,0,row_index,0)
-            self.update_empty_row(self.ongoing,row_data[0],ONGOING_HEADER_OFFSET,True)
+            self.update_empty_row(self.ongoing,row_data[0],ONGOING_HEADER_OFFSET)
             self.gdcon.update_row(self.coming,row_index,["" for i in xrange(len(row_data[0]))])
     
         def last_name(data):
