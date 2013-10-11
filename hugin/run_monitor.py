@@ -18,17 +18,54 @@ ABORTED = "Aborted"
 PER_CYCLE_MINUTES = {'RapidRun': 12,
                      'HighOutput': 100,
                      'MiSeq': 6}
-  
+
+DAYS_TO_KEEP = 45
+
 class RunMonitor(Monitor):
     
     def __init__(self, config):
         super(RunMonitor, self).__init__(config)
         self.trello_board = self.trello.get_board(config.get("trello",{}).get("run_tracking_board",None),True)
+        self.trello_board_archive = self.trello.get_board(config.get("trello",{}).get("run_tracking_board_archive",None),True)
         assert self.trello_board is not None, "Could not locate run tracking board in Trello"
         self.run_folders = [d.strip() for d in config.get("run_folders","").split(",")]
         self.samplesheet_folders = [d.strip() for d in config.get("samplesheet_folders","").split(",")]
         self.instruments = config.get("instruments", {})
+    
+    def archive_cards(self):
+        """Archive cards that are finished or aborted and older than the limit for keeping them on the board
+        """
+        if not self.trello_board_archive:
+            print("No archive board specified in config")
+            return
         
+        td = datetime.timedelta(seconds=DAYS_TO_KEEP*24*60*60)
+        completed_cards = self.list_trello_cards([ABORTED,COMPLETED])
+        for card in completed_cards.values():
+            date = self.description_to_dict(card.description).get("Date")
+            if not date:
+                continue
+            try:
+                started = datetime.datetime.strptime(date[0],"%y%m%d")
+            except ValueError:
+                continue
+            if datetime.datetime.utcnow() - started >  td:
+                archive_list_name = started.strftime("%b %Y")
+                print("Archiving card {} to list {}, run started on {}".format(card.name,archive_list_name,date[0]))
+                card.fetch()
+                self.trello.change_list(card,archive_list_name,board_id=self.trello_board_archive.id)
+    
+        # Sort the lists on the board and then the cards in the list
+        def _chronologically(obj):
+            try:
+                return str(int(datetime.datetime.strptime(obj.name,"%b %Y").strftime("%m")))
+            except:
+                return obj.name
+            
+        self.trello.sort_lists_on_board(self.trello_board_archive, key=_chronologically)
+        for lst in self.trello_board_archive.all_lists():
+            self.trello.sort_cards_on_list(lst)
+    
     def set_run_completed(self, run):
         """Set the status of the run to completed"""
         card = self.trello.get_card_on_board(self.trello_board,run['name'])
@@ -40,6 +77,7 @@ class RunMonitor(Monitor):
         lst = self.trello.add_list(self.trello_board,COMPLETED)
         if card.list_id != lst.id:
             card.change_list(lst.id)
+            self.trello.sort_cards_on_list(lst)
 
     def get_due_datetime(self, run, step, started=datetime.datetime.utcnow()):
         """Get the expected due date for a particular sequencing/processing step"""
@@ -169,6 +207,10 @@ class RunMonitor(Monitor):
             if status == STALLED and was_moved:
                 users = [self.trello.client.get_member(mid) for mid in card.member_ids]
                 self.send_status_notification(run,status,users)
+        
+        # Lastly, sort the cards in the lists
+        for lst in self.trello_board.all_lists():
+            self.trello.sort_cards_on_list(lst)
                 
     def update_trello_project_board(self):
         """Update the project cards for projects in ongoing runs

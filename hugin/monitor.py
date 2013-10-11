@@ -18,6 +18,21 @@ class Monitor(object):
         self.trello = TrelloUtils(config)
         self.config = config
 
+    def list_trello_cards(self, lists):
+        # Loop over the lists and fetch the cards, returning a dictionary keyed with the card title
+        cards = {}
+        for tlist in lists:
+            list_obj = self.trello.get_list(self.trello_board,tlist,True)
+            if not list_obj:
+                continue
+            
+            # Loop over the cards in the list
+            for card in list_obj.list_cards():
+                # Get the description and convert it to a dictionary
+                cards[card.name] = card
+                
+        return cards
+    
     def list_runs(self):
         """Get a list of folders matching the run folder pattern"""
         pattern = r'(\d{6})_([SNMD]+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
