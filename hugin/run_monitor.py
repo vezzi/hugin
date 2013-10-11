@@ -41,6 +41,7 @@ class RunMonitor(Monitor):
         
         td = datetime.timedelta(seconds=DAYS_TO_KEEP*24*60*60)
         completed_cards = self.list_trello_cards([ABORTED,COMPLETED])
+        archived = False
         for card in completed_cards.values():
             date = self.description_to_dict(card.description).get("Date")
             if not date:
@@ -54,17 +55,17 @@ class RunMonitor(Monitor):
                 print("Archiving card {} to list {}, run started on {}".format(card.name,archive_list_name,date[0]))
                 card.fetch()
                 self.trello.change_list(card,archive_list_name,board_id=self.trello_board_archive.id)
-    
+                archived = True
         # Sort the lists on the board and then the cards in the list
         def _chronologically(obj):
             try:
                 return str(int(datetime.datetime.strptime(obj.name,"%b %Y").strftime("%m")))
             except:
                 return obj.name
-            
-        self.trello.sort_lists_on_board(self.trello_board_archive, key=_chronologically)
-        for lst in self.trello_board_archive.all_lists():
-            self.trello.sort_cards_on_list(lst)
+        if archived:
+            self.trello.sort_lists_on_board(self.trello_board_archive, key=_chronologically)
+            for lst in self.trello_board_archive.all_lists():
+                self.trello.sort_cards_on_list(lst)
     
     def set_run_completed(self, run):
         """Set the status of the run to completed"""
@@ -179,6 +180,7 @@ class RunMonitor(Monitor):
         # Don't update the card if it is in any of these lists
         skip_list_ids = [self.trello.get_list_id(self.trello_board,COMPLETED),
                          self.trello.get_list_id(self.trello_board,ABORTED)]
+        updated = False
         runs = self.list_runs()
         for run in runs:
             print("Adding run {}".format(run['name']))
@@ -207,10 +209,13 @@ class RunMonitor(Monitor):
             if status == STALLED and was_moved:
                 users = [self.trello.client.get_member(mid) for mid in card.member_ids]
                 self.send_status_notification(run,status,users)
+            
+            updated = updated or was_moved
         
         # Lastly, sort the cards in the lists
-        for lst in self.trello_board.all_lists():
-            self.trello.sort_cards_on_list(lst)
+        if updated:
+            for lst in self.trello_board.all_lists():
+                self.trello.sort_cards_on_list(lst)
                 
     def update_trello_project_board(self):
         """Update the project cards for projects in ongoing runs
