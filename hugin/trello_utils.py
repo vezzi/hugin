@@ -123,7 +123,6 @@ class TrelloUtils(object):
             return obj.name
         if key is None:
             key = _alphabetically
-        import ipdb; ipdb.set_trace()
         for i,lst in enumerate(sorted(board_obj.all_lists(), key=key)):
             lst._set_remote_attribute('pos',str(i+1))
         
