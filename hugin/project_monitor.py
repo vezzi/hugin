@@ -63,6 +63,13 @@ class ProjectMonitor(Monitor):
         
         card.set_closed(False)
         card.change_list(lst.id)
+        def _by_last_name(card):
+            pcs = card.name.split(".")
+            if len(pcs) > 1:
+                return "".join(pcs[1:])
+            return pcs[0]
+        
+        self.trello.sort_cards_on_list(lst,key=_by_last_name)
         return card
     
     def add_run_to_project(self, project, run):

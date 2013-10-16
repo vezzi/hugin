@@ -1,4 +1,5 @@
 import trello
+import datetime
 
 class TrelloUtils(object):
     
@@ -75,7 +76,7 @@ class TrelloUtils(object):
             return card
         return list.add_card(name,desc)
 
-    def change_list(self, card, new_list, skip_list_ids=[]):
+    def change_list(self, card, new_list, skip_list_ids=None, board_id=None):
         """Move a card to a new list if it is not already on the list or if it is not on any
         of the lists in the optional skip_list_id list. Returns True if the card was moved or 
         False otherwise
@@ -84,15 +85,44 @@ class TrelloUtils(object):
         if card is None:
             return False
         
-        # Add or get an object for the new list
-        list_obj = self.add_list(card.client.get_board(card.board_id),new_list)
+        if skip_list_ids is None:
+            skip_list_ids = []
         
+        if board_id is None:
+            board_id = card.board_id
+            
+        # Add or get an object for the new list
+        list_obj = self.add_list(card.client.get_board(board_id),new_list)
         # Don't change if the card is already on the new list or if it is on a list in the skip_list_ids
         old_list_id = card.list_id
         if old_list_id == list_obj.id or old_list_id in skip_list_ids:
             return False
         
-        card.change_list(list_obj.id)
+        # If the board will change, call the change board method
+        if board_id != card.board_id:
+            card.change_board(board_id,list_id=list_obj.id)
+        else:
+            card.change_list(list_obj.id)
         card.fetch()
         return True
-         
+    
+    def sort_cards_on_list(self, list_obj, key=None):
+        """Sort the cards on the list using the supplied key function, or alphabetically if this is None
+        """
+        def _alphabetically(obj):
+            return obj.name
+        if key is None:
+            key = _alphabetically
+        for i,card in enumerate(sorted(list_obj.list_cards(), key=key)):
+            card._set_remote_attribute('pos',str(i+1))
+        
+    def sort_lists_on_board(self, board_obj, key=None):
+        """Sort the cards on the list using the supplied key function, or alphabetically if this is None
+        """
+        def _alphabetically(obj):
+            return obj.name
+        if key is None:
+            key = _alphabetically
+        for i,lst in enumerate(sorted(board_obj.all_lists(), key=key)):
+            lst._set_remote_attribute('pos',str(i+1))
+        
