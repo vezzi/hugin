@@ -183,7 +183,13 @@ class RunMonitor(Monitor):
         updated = False
         runs = self.list_runs()
         for run in runs:
-            print("Adding run {}".format(run['name']))
+            print("Processing run {}".format(run['name']))
+            
+            # check if the run has already been archived and if so, skip it
+            if self.trello_board_archive and self.trello.get_card_on_board(self.trello_board_archive,run['name']):
+                print("run {} is archived, skipping".format(run['name']))
+                continue
+                
             status, due = self.get_status_due(run)
             
             # If due time has passed and didn't find all status files, set status to stalled.
@@ -224,6 +230,12 @@ class RunMonitor(Monitor):
         pm = ProjectMonitor(self.config)
         runs = self.list_runs()
         for run in runs:
+            
+            # check if the run has already been archived and if so, skip it
+            if self.trello_board_archive and self.trello.get_card_on_board(self.trello_board_archive,run['name']):
+                print("run {} is archived, skipping".format(run['name']))
+                continue
+            
             projects = self.get_run_projects(run)
             for project in projects:
                 print("Adding run {} to project {}".format(run['name'],project))
