@@ -110,7 +110,7 @@ class GDocsUpdater(rm.RunMonitor):
             pdoc = self.pcon.get_entry(project)
             if pdoc:
                 application = str(pdoc.get("application",""))
-                type = str(pdoc.get("type",""))
+                type = str(pdoc.get("type",pdoc.get("details",{}).get("type","")))
                 
         return application, type
     
