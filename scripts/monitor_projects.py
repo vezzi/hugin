@@ -8,6 +8,8 @@ from hugin.project_monitor import ProjectMonitor
 def monitor(config):
     pm = ProjectMonitor(config)
     pm.update_run_status()
+    pm.update_trello_board()
+    pm.archive_cards()
     
 def main():
     parser = argparse.ArgumentParser(description="A script that will monitor specified project folders and update a Trello board as the status of projects change")

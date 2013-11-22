@@ -57,13 +57,8 @@ class RunMonitor(Monitor):
                 self.trello.change_list(card,archive_list_name,board_id=self.trello_board_archive.id)
                 archived = True
         # Sort the lists on the board and then the cards in the list
-        def _chronologically(obj):
-            try:
-                return str(int(datetime.datetime.strptime(obj.name,"%b %Y").strftime("%m")))
-            except:
-                return obj.name
         if archived:
-            self.trello.sort_lists_on_board(self.trello_board_archive, key=_chronologically)
+            self.trello.sort_lists_on_board(self.trello_board_archive, key=self._chronologically)
             for lst in self.trello_board_archive.all_lists():
                 self.trello.sort_cards_on_list(lst)
     
