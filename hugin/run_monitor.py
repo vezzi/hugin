@@ -221,6 +221,10 @@ class RunMonitor(Monitor):
     def update_trello_project_board(self):
         """Update the project cards for projects in ongoing runs
         """
+        
+        skip_list_ids = [self.trello.get_list_id(self.trello_board,COMPLETED),
+                         self.trello.get_list_id(self.trello_board,ABORTED)]
+        
         from hugin.project_monitor import ProjectMonitor
         pm = ProjectMonitor(self.config)
         runs = self.list_runs()
@@ -230,6 +234,11 @@ class RunMonitor(Monitor):
             if self.trello_board_archive and self.trello.get_card_on_board(self.trello_board_archive,run['name']):
                 print("run {} is archived, skipping".format(run['name']))
                 continue
+            
+            # check if the run is in a list that should be skipped
+            card = self.trello.get_card_on_board(self.trello_board,run['name'])
+            if card and card.trello_list.id in skip_list_id:
+                continue 
             
             projects = self.get_run_projects(run)
             for project in projects:
