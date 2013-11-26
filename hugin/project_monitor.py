@@ -54,25 +54,25 @@ class ProjectMonitor(Monitor):
             # If all samples have been removed, the card should be on the PROJECT_REMOVED list
             if all([s.get('removed') is not None for s in prjtree['samples']]):
                 status = PROJECT_REMOVED
-                due = max([s['removed'] for s in prjtree['samples']]) + datetime.timedelta(seconds=self._days_to_seconds(DAYS_TO_KEEP_CARD))
+                due = max([s['removed'] for s in prjtree['samples']]) + datetime.timedelta(days=DAYS_TO_KEEP_CARD)
                 return status, due
             
             # If all samples have been delivered, the card should be on the PROJECT_DELIVERED list
             if all([s.get('delivered') is not None for s in prjtree['samples']]):
                 status = PROJECT_DELIVERED
-                due = max([s['delivered'] for s in prjtree['samples']]) + datetime.timedelta(seconds=self._days_to_seconds(DAYS_TO_KEEP_DATA))
+                due = max([s['delivered'] for s in prjtree['samples']]) + datetime.timedelta(days=DAYS_TO_KEEP_DATA)
                 return status, due
             
             # If all samples have been analyzed, the card should be on the BP_AND_DELIVERY_IN_PROGRESS list
             if all([fc.get('project_summary') is not None for s in prjtree['samples'] for fc in s['flowcells']]):
                 status = BP_AND_DELIVERY_IN_PROGRESS
-                due = max([datetime.datetime.fromtimestamp(os.path.getmtime(fc['project_summary'])) for s in prjtree['samples'] for fc in s['flowcells']]) + datetime.timedelta(seconds=self._days_to_seconds(DAYS_FOR_DELIVERY)) 
+                due = max([datetime.datetime.fromtimestamp(os.path.getmtime(fc['project_summary'])) for s in prjtree['samples'] for fc in s['flowcells']]) + datetime.timedelta(days=DAYS_FOR_DELIVERY) 
                 return status, due
             
             # If all samples have started analyzed, the card should be in the BCBB_ANALYSIS_IN_PROGRESS list
-            if all([fc.get('logfile') is not None and datetime.datetime.fromtimestamp(os.path.getmtime(fc['logfile'])) + datetime.timedelta(seconds=self._hours_to_seconds(HOURS_BCBB_INACTIVE)) > datetime.datetime.utcnow() for s in prjtree['samples'] for fc in s['flowcells'] if not fc.get('project_summary')]):
+            if all([fc.get('logfile') is not None and datetime.datetime.fromtimestamp(os.path.getmtime(fc['logfile'])) + datetime.timedelta(hours=HOURS_BCBB_INACTIVE) > datetime.datetime.utcnow() for s in prjtree['samples'] for fc in s['flowcells'] if not fc.get('project_summary')]):
                 status = BCBB_ANALYSIS_IN_PROGRESS
-                due = max([datetime.datetime.fromtimestamp(os.path.getctime(fc['logfile'])) for s in prjtree['samples'] for fc in s['flowcells']]) + datetime.timedelta(seconds=self._days_to_seconds(DAYS_FOR_ANALYSIS)) 
+                due = max([datetime.datetime.fromtimestamp(os.path.getctime(fc['logfile'])) for s in prjtree['samples'] for fc in s['flowcells']]) + datetime.timedelta(days=DAYS_FOR_ANALYSIS) 
                 return status, due
             
         status = STALLED
