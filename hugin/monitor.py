@@ -13,7 +13,7 @@ import socket
 SENDER = "hugin@{}".format(socket.gethostname())
   
 class Monitor(object):
-    
+
     def __init__(self, config):
         self.trello = TrelloUtils(config)
         self.config = config
@@ -132,7 +132,7 @@ class Monitor(object):
                 pass
         if len(recipients) == 0:
             recipients = self.config.get("email",{}).get("default","").split(",")
-        if len(recipients) == 0:
+        if len(recipients) == 0 or all([len(r) == 0 for r in recipients]):
             return
         
         msg = MIMEText("{}\nSent from {}".format(msg,
@@ -140,9 +140,12 @@ class Monitor(object):
         msg['Subject'] = subject
         msg['From'] = SENDER
         msg['To'] = ",".join(recipients)
-        s = smtplib.SMTP(self.config.get("email",{}).get("smtp_host","localhost"))
-        s.sendmail(SENDER, recipients, msg.as_string())
-        s.quit()   
+        try:
+            s = smtplib.SMTP(self.config.get("email",{}).get("smtp_host","localhost"))
+            s.sendmail(SENDER, recipients, msg.as_string())
+            s.quit()
+        except Exception, e:
+            print("WARNING: Sending email to {} failed: {}".format(",".join(recipients),str(e)))   
   
     def set_description(self, card, description={}, merge=False):
         """Update the description on the card if necessary. Assumes description is supplied
@@ -218,3 +221,25 @@ class Monitor(object):
                     pass 
         
         return timestamp
+
+    def _days_to_seconds(self, days=0):
+        return days*self._hours_to_seconds(24)
+
+    def _hours_to_seconds(self, hours=0):
+        return hours*self._minutes_to_seconds(60)
+
+    def _minutes_to_seconds(self, minutes=0):
+        return minutes*60
+
+    def _chronologically(obj):
+        try:
+            return str(int(datetime.datetime.strptime(obj.name,"%b %Y").strftime("%m")))
+        except:
+            return obj.name
+
+    def _by_last_name(card):
+            pcs = card.name.split(".")
+            if len(pcs) > 1:
+                return "".join(pcs[1:] + [pcs[0]])
+            return pcs[0]
+        

@@ -88,22 +88,26 @@ class TrelloUtils(object):
         if skip_list_ids is None:
             skip_list_ids = []
         
+        # Don't change if the card is already on the new list or if it is on a list in the skip_list_ids
+        old_list_id = card.trello_list.id
+        if old_list_id in skip_list_ids:
+            return False
+        
         if board_id is None:
-            board_id = card.board_id
+            board_id = card.trello_list.board.id
             
         # Add or get an object for the new list
         list_obj = self.add_list(card.client.get_board(board_id),new_list)
-        # Don't change if the card is already on the new list or if it is on a list in the skip_list_ids
-        old_list_id = card.list_id
-        if old_list_id == list_obj.id or old_list_id in skip_list_ids:
+        
+        if old_list_id == list_obj.id:
             return False
         
         # If the board will change, call the change board method
-        if board_id != card.board_id:
+        if board_id != card.trello_list.board.id:
             card.change_board(board_id,list_id=list_obj.id)
         else:
             card.change_list(list_obj.id)
-        card.fetch()
+            
         return True
     
     def sort_cards_on_list(self, list_obj, key=None):
