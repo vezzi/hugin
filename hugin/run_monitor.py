@@ -184,6 +184,11 @@ class RunMonitor(Monitor):
             if self.trello_board_archive and self.trello.get_card_on_board(self.trello_board_archive,run['name']):
                 print("run {} is archived, skipping".format(run['name']))
                 continue
+            
+            card = self.trello.get_card_on_board(self.trello_board,run['name'])
+            if card is not None and card.list_id in skip_list_ids:
+                print("run {} is in {}, skipping".format(run['name'],card.list_id))
+                continue
                 
             status, due = self.get_status_due(run)
             
@@ -193,7 +198,6 @@ class RunMonitor(Monitor):
             if due < datetime.datetime.utcnow() and status != UPPMAX:
                 status = STALLED
                 
-            card = self.trello.get_card_on_board(self.trello_board,run['name'])
             if card is None:
                 card = self.trello.add_card(self.trello.add_list(self.trello_board,status), run['name'])
                 was_moved= True
@@ -237,7 +241,8 @@ class RunMonitor(Monitor):
             
             # check if the run is in a list that should be skipped
             card = self.trello.get_card_on_board(self.trello_board,run['name'])
-            if card and card.trello_list.id in skip_list_id:
+            if card and card.list_id in skip_list_ids:
+                print("run {} is in list {}, skipping".format(run['name'],card.list_id))
                 continue 
             
             projects = self.get_run_projects(run)

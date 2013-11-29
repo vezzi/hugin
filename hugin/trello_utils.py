@@ -93,8 +93,12 @@ class TrelloUtils(object):
         if old_list_id in skip_list_ids:
             return False
         
-        if board_id is None:
-            board_id = card.trello_list.board.id
+        # load the card attributes if necessary
+        if 'board_id' not in vars(card):
+            card.fetch()
+            
+        if board_id is None: 
+            board_id = card.board_id
             
         # Add or get an object for the new list
         list_obj = self.add_list(card.client.get_board(board_id),new_list)
@@ -103,7 +107,7 @@ class TrelloUtils(object):
             return False
         
         # If the board will change, call the change board method
-        if board_id != card.trello_list.board.id:
+        if board_id != card.board_id:
             card.change_board(board_id,list_id=list_obj.id)
         else:
             card.change_list(list_obj.id)
