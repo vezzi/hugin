@@ -230,13 +230,14 @@ class Monitor(object):
 
     def _minutes_to_seconds(self, minutes=0):
         return minutes*60
-
+    
+    @staticmethod
     def _chronologically(obj):
         try:
             return str(int(datetime.datetime.strptime(obj.name,"%b %Y").strftime("%m")))
         except:
             return obj.name
-
+    @staticmethod
     def _by_last_name(card):
             pcs = card.name.split(".")
             if len(pcs) > 1:
