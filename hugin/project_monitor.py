@@ -80,7 +80,7 @@ class ProjectMonitor(Monitor):
         return status, due
 
     def update_trello_board(self):
-        cards = self.list_trello_cards([SEQUENCING_IN_PROGRESS,BCBB_ANALYSIS_IN_PROGRESS,BP_AND_DELIVERY_IN_PROGRESS,PROJECT_DELIVERED,STALLED])
+        cards = self.list_trello_cards([BCBB_ANALYSIS_IN_PROGRESS,BP_AND_DELIVERY_IN_PROGRESS,PROJECT_DELIVERED,STALLED])
         updated = False
         for project, card in cards.items():
             status, due = self.get_status_due(project)
@@ -192,6 +192,11 @@ class ProjectMonitor(Monitor):
             print("Checking run {}".format(run['name']))
             if self.get_run_status(run):
                 rm.set_run_completed(run)
+                # Loop over the projects in the run and move them to the bcbb list
+                # Note that this can cause the card to be moved back to sequencing by the run_monitor in case
+                # the project is sequenced on multiple flowcells. Has no good solution at this moment.
+                for project in run.get('projects',[]):
+                     self.add_project_card(project,BCBB_ANALYSIS_IN_PROGRESS)
         
     def set_card_checklist_item(self, card, chklist_name, item_name, state):
         """Mark the bcbb analysis as started for a project and run"""
