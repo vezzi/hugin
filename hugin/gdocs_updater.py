@@ -94,7 +94,9 @@ class GDocsUpdater(rm.RunMonitor):
         
         run_projects = []
         for id,data in runs.items():
-            for project in data.get('Projects',[]):
+            for project in data.get('Projects',['']):
+                if len(project) == 0:
+                    project = 'Unknown, please check!'
                 if "{}_{}".format(id,project) not in skiplist:
                     application, type = '',''#self.lookup_project(project)
                     run_projects.append([id,project,application,type,'',data.get('Run mode',[''])[0]])
