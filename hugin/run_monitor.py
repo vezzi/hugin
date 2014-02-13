@@ -289,3 +289,21 @@ class RunMonitor(Monitor):
             setup = ",".join(c)
         
         return setup
+
+    def check_missing_description(self):
+        run_dict = {}
+        runs = self.list_runs()
+        for r in runs:
+            run_dict[r['name']] = r
+        all_cards_in_board =  self.trello_board.all_cards()
+        for card in all_cards_in_board:
+            card.fetch()
+            if card.name in run_dict:
+                run = run_dict[card.name]
+            else:
+                continue
+            descrip = self.description_to_dict(card.description)
+            empty = [k for k in descrip.keys() if re.search(r'^$|^NA$',''.join(descrip[k]))]
+            if len(empty) > 0:
+                metadata = self.get_run_metadata(run)
+                self.set_description(card,metadata,False)
