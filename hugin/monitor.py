@@ -160,9 +160,10 @@ class Monitor(object):
         
         if merge:
             current = self.description_to_dict(card.description)
-            description = current.update(description)
+            current.update(description)
             if cmp(current, description) == 0:
                 return False
+            description = current
         
         # Convert the description dict to a string that will be formatted as a list
         description = self.dict_to_description(description)
