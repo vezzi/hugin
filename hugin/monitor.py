@@ -151,19 +151,18 @@ class Monitor(object):
         """Update the description on the card if necessary. Assumes description is supplied
         as a dict with key: value pairs that will be displayed as a list on the description.
         If merge=True, the current description will be merged with the supplied description
-        before updating. Merging is done so that the description of the card overwrites the
-        supplied description
+        before updating. Merging is done so that the current(existing) description of the 
+        card overwrites the supplied description
         Returns True if the description was updated, False otherwise
         """
         if card is None:
             return False
         
-        # Get the current description and check if it is different from the new
-        current = self.description_to_dict(card.description)
-        # If merging, update the description with the current
-        description.update(current)
-        if cmp(current, description) == 0:
-            return False
+        if merge:
+            current = self.description_to_dict(card.description)
+            description = current.update(description)
+            if cmp(current, description) == 0:
+                return False
         
         # Convert the description dict to a string that will be formatted as a list
         description = self.dict_to_description(description)
