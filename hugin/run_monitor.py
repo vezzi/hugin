@@ -22,7 +22,7 @@ PER_CYCLE_MINUTES = {'RapidRun': 12,
 DAYS_TO_KEEP = 45
 
 class RunMonitor(Monitor):
-    
+
     def __init__(self, config):
         super(RunMonitor, self).__init__(config)
         self.trello_board = self.trello.get_board(config.get("trello",{}).get("run_tracking_board",None),True)
@@ -31,14 +31,14 @@ class RunMonitor(Monitor):
         self.run_folders = [d.strip() for d in config.get("run_folders","").split(",")]
         self.samplesheet_folders = [d.strip() for d in config.get("samplesheet_folders","").split(",")]
         self.instruments = config.get("instruments", {})
-    
+
     def archive_cards(self):
         """Archive cards that are finished or aborted and older than the limit for keeping them on the board
         """
         if not self.trello_board_archive:
             print("No archive board specified in config")
             return
-        
+
         td = datetime.timedelta(seconds=DAYS_TO_KEEP*24*60*60)
         completed_cards = self.list_trello_cards([ABORTED,COMPLETED])
         archived = False
@@ -61,11 +61,11 @@ class RunMonitor(Monitor):
             self.trello.sort_lists_on_board(self.trello_board_archive, key=self._chronologically)
             for lst in self.trello_board_archive.all_lists():
                 self.trello.sort_cards_on_list(lst)
-    
+
     def set_run_completed(self, run):
         """Set the status of the run to completed"""
         card = self.trello.get_card_on_board(self.trello_board,run['name'])
-        
+
         # Skip if the card is not on the board or if it has been closed
         if card is None or card.closed:
             return
@@ -77,11 +77,11 @@ class RunMonitor(Monitor):
 
     def get_due_datetime(self, run, step, started=datetime.datetime.utcnow()):
         """Get the expected due date for a particular sequencing/processing step"""
-        
+
         # Return None if we are not familiar with the step
         if step not in ["Pre-seq",FIRSTREAD,INDEXREAD,SECONDREAD,PROCESSING,UPPMAX]:
             return None
-        
+
         # processing step
         if step == PROCESSING:
             max_duration = 8*60*60
@@ -103,37 +103,35 @@ class RunMonitor(Monitor):
                 max_duration = read_cycles[0] * cycle_duration
             else:
                 max_duration = read_cycles[1] * cycle_duration
-                
+
         return started + datetime.timedelta(seconds=max_duration)
 
     def get_status_due(self, run):
         """Get the current status and the maximum expected due time for a run"""
-        
+
         reads = run['run_info'].get('Reads',[])
         status_flags = ["First_Base_Report.htm"] + ["Basecalling_Netcopy_complete_Read{}.txt".format(str(i+1)) for i in range(len(reads))]
-        started_processing_flags = ["initial_processing_started.txt", "first_read_processing_started.txt", "second_read_processing_started.txt"] 
+        started_processing_flags = ["initial_processing_started.txt", "first_read_processing_started.txt", "second_read_processing_started.txt"]
         completed_processing_flags = [f.replace("started","completed") for f in started_processing_flags]
-        
+
         # Get number of non-index reads
         treads = len([r for r in reads if r.get("IsIndexedRead","N") == "N"])
-        
+
         # Get the highest file flag
         last_event_flag = run['path']
         for f in status_flags:
             f = os.path.join(run['path'],f)
             if os.path.exists(f):
                 last_event_flag = f
-            else:
-                break
-         
-        try: 
+
+        try:
             flag_index = status_flags.index(os.path.basename(last_event_flag))
         except ValueError:
             flag_index = -1
-        
+
         # flag_index will be equal to the read number that has been finished
         # thus we are currently sequencing read flag_index+1
-        
+
         # first base report has not yet appeared
         if flag_index < 0:
             status = FIRSTREAD
@@ -166,7 +164,7 @@ class RunMonitor(Monitor):
 
             # get the expected due date
             due = self.get_due_datetime(run, status, started=datetime.datetime.fromtimestamp(os.path.getmtime(last_event_flag)))
-        
+
         return status, due
 
     def update_trello_board(self):
@@ -179,77 +177,77 @@ class RunMonitor(Monitor):
         runs = self.list_runs()
         for run in runs:
             print("Processing run {}".format(run['name']))
-            
+
             # check if the run has already been archived and if so, skip it
             if self.trello_board_archive and self.trello.get_card_on_board(self.trello_board_archive,run['name']):
                 print("run {} is archived, skipping".format(run['name']))
                 continue
-            
+
             card = self.trello.get_card_on_board(self.trello_board,run['name'])
             if card is not None and card.list_id in skip_list_ids:
                 print("run {} is in {}, skipping".format(run['name'],card.list_id))
                 continue
-                
+
             status, due = self.get_status_due(run)
-            
+
             # If due time has passed and didn't find all status files, set status to stalled.
             # if status == UPPMAX means that the processing has finished, and should have more
             # priority than due date
             if due < datetime.datetime.utcnow() and status != UPPMAX:
                 status = STALLED
-                
+
             if card is None:
                 card = self.trello.add_card(self.trello.add_list(self.trello_board,status), run['name'])
                 was_moved= True
             else:
                 was_moved = self.trello.change_list(card, status, skip_list_ids)
                 card.set_closed(False)
-            
+
             # Gather the information on the run and update the description on the card as necessary
             metadata = self.get_run_metadata(run)
             self.set_description(card,metadata,True)
             self.set_due(card,due)
-            
-            # If the card was moved to the STALLED list, send a notification                
+
+            # If the card was moved to the STALLED list, send a notification
             if status == STALLED and was_moved:
                 users = [self.trello.client.get_member(mid) for mid in card.member_ids]
                 self.send_status_notification(run,status,users)
-            
+
             updated = updated or was_moved
-        
+
         # Lastly, sort the cards in the lists
         if updated:
             for lst in self.trello_board.all_lists():
                 self.trello.sort_cards_on_list(lst)
-                
+
     def update_trello_project_board(self):
         """Update the project cards for projects in ongoing runs
         """
-        
+
         skip_list_ids = [self.trello.get_list_id(self.trello_board,COMPLETED),
                          self.trello.get_list_id(self.trello_board,ABORTED)]
-        
+
         from hugin.project_monitor import ProjectMonitor
         pm = ProjectMonitor(self.config)
         runs = self.list_runs()
         for run in runs:
-            
+
             # check if the run has already been archived and if so, skip it
             if self.trello_board_archive and self.trello.get_card_on_board(self.trello_board_archive,run['name']):
                 print("run {} is archived, skipping".format(run['name']))
                 continue
-            
+
             # check if the run is in a list that should be skipped
             card = self.trello.get_card_on_board(self.trello_board,run['name'])
             if card and card.list_id in skip_list_ids:
                 print("run {} is in list {}, skipping".format(run['name'],card.list_id))
-                continue 
-            
+                continue
+
             projects = self.get_run_projects(run)
             for project in projects:
                 print("Adding run {} to project {}".format(run['name'],project))
                 pm.add_run_to_project(project,run)
-    
+
     def send_status_notification(self, run, status, users=[]):
         """Send an email notification that a run has been moved to a list
         """
@@ -259,11 +257,11 @@ class RunMonitor(Monitor):
                                                          status,
                                                          self.trello_board.name)
         self.send_notification(subject,msg,users)
-      
+
     def get_run_metadata(self, run):
         metadata = {}
         metadata['Projects'] = run['projects']
-        metadata['Setup'] = self.get_run_setup(run) 
+        metadata['Setup'] = self.get_run_setup(run)
         metadata['Flowcell'] = run['run_info'].get('Flowcell','NA')
         instrument = run['run_info'].get('Instrument','NA')
         if self.instruments:
@@ -271,23 +269,23 @@ class RunMonitor(Monitor):
             if instrument_name:
                 instrument += " ({name})".format(name=instrument_name)
         metadata['Instrument'] = instrument
-        metadata['Date'] = run['run_info'].get('Date','NA')      
-        metadata['Run mode'] = run['run_parameters'].get('RunMode','HighOutput' if not self.is_miseq_run(run) else 'MiSeq')  
+        metadata['Date'] = run['run_info'].get('Date','NA')
+        metadata['Run mode'] = run['run_parameters'].get('RunMode','HighOutput' if not self.is_miseq_run(run) else 'MiSeq')
         return metadata
-    
+
     def get_run_setup(self, run):
         reads = run['run_info'].get('Reads',[])
         read_cycles = [r.get('NumCycles','?') for r in reads if r.get('IsIndexedRead','N') == 'N']
         index_cycles = [r.get('NumCycles','?') for r in reads if r.get('IsIndexedRead','N') == 'Y']
         nreads = len(read_cycles)
         nindex = len(index_cycles)
-        
+
         c = list(set(read_cycles))
         if len(c) == 1:
             setup = "{}x{}".format(str(nreads),c[0])
         else:
             setup = ",".join(c)
-        
+
         return setup
 
     def check_missing_description(self):
