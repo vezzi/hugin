@@ -7,7 +7,7 @@ from scilifelab.google.google_docs import SpreadSheet
 from scilifelab.google import get_credentials 
 
 # The row where the actual user-entered data starts in the worksheets
-ONGOING_HEADER_OFFSET = 5
+ONGOING_HEADER_OFFSET = 4
 COMING_HEADER_OFFSET = 2
 FINISHED_HEADER_OFFSET = 3
 

@@ -1,7 +1,6 @@
 
 import argparse
 import yaml
-import sys
 import os
 from hugin.run_monitor import RunMonitor
 
@@ -9,10 +8,10 @@ def monitor(config,check):
 	rm = RunMonitor(config)
 	if check:
 		rm.check_missing_description()
-		sys.exit()
-	rm.update_trello_board()
-	rm.update_trello_project_board()
-	rm.archive_cards()
+	else:
+		rm.update_trello_board()
+		rm.update_trello_project_board()
+		rm.archive_cards()
 
 def main():
 	parser = argparse.ArgumentParser(description="A script that will monitor specified run folders and update a Trello board as the status of runs change")
@@ -26,5 +25,5 @@ def main():
 	monitor(config,args.check_descrip)
     
 if __name__ == "__main__":
-    main()
+	main()
 
