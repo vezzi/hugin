@@ -302,6 +302,6 @@ class RunMonitor(Monitor):
                 continue
             descrip = self.description_to_dict(card.description)
             empty = [k for k in descrip.keys() if re.search(r'^$|^NA$',''.join(descrip[k]))]
-            if len(empty) > 0:
+            if len(empty) > 0 or not card.description:
                 metadata = self.get_run_metadata(run)
                 self.set_description(card,metadata,False)
