@@ -17,6 +17,7 @@ ABORTED = "Aborted"
 
 PER_CYCLE_MINUTES = {'RapidRun': 12,
                      'HighOutput': 100,
+                     'RapidHighOutput': 43,
                      'MiSeq': 6}
 
 DAYS_TO_KEEP = 45
