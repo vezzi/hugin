@@ -4,6 +4,8 @@ import re
 import csv
 import glob
 import datetime
+import platform
+
 from hugin.monitor import Monitor
 
 FIRSTREAD = "First read"
@@ -266,12 +268,16 @@ class RunMonitor(Monitor):
         metadata['Flowcell'] = run['run_info'].get('Flowcell','NA')
         instrument = run['run_info'].get('Instrument','NA')
         if self.instruments:
-            instrument_name = self.instruments.get(instrument, '')
-            if instrument_name:
-                instrument += " ({name})".format(name=instrument_name)
+            instrument_data = self.instruments.get(instrument, '')
+            if instrument_data:
+                #instrument has a comma separated value: name,IP,source_nas
+                name, ip, nas = instrument_data.split(',')
+                instrument += " ({name}) - {ip}, comming from {nas}".format(name=name,
+                                                                            ip=ip, nas=nas)
         metadata['Instrument'] = instrument
         metadata['Date'] = run['run_info'].get('Date','NA')
         metadata['Run mode'] = run['run_parameters'].get('RunMode','HighOutput' if not self.is_miseq_run(run) else 'MiSeq')
+        metadata['Processed in'] = platform.node()
         return metadata
 
     def get_run_setup(self, run):
