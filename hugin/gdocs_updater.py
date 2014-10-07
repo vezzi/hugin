@@ -208,14 +208,16 @@ class GDocsUpdater(rm.RunMonitor):
 
         delete_ongoing = []
         delete_finished = []
-        for row in self.gdcon.get_cell_content(self.ongoing,0,1,0,0):
+        for idx, row in enumerate(self.gdcon.get_cell_content(self.ongoing)):
             if row[4] in ["Cancelled", "Finished"]:
-                self.update_empty_row(self.finished, row, FINISHED_HEADER_OFFSET)
-                delete_ongoing.append(self.gdcon.get_row_index(self.ongoing,row[0:2],1))
-        for row in self.gdcon.get_cell_content(self.finished,0,1,0,0):
+                row_updated = self.update_empty_row(self.finished, row, FINISHED_HEADER_OFFSET)
+                if row_updated:
+                    delete_ongoing.append(idx + 1)
+        for idx, row in enumerate(self.gdcon.get_cell_content(self.finished)):
             if row[4] in ["On Hold", "Ongoing"]:
-                self.update_empty_row(self.ongoing, row, ONGOING_HEADER_OFFSET)
-                delete_finished.append(self.gdcon.get_row_index(self.finished,row[0:2],1))
+                row_updated = self.update_empty_row(self.ongoing, row, ONGOING_HEADER_OFFSET)
+                if row_updated:
+                    delete_finished.append(idx + 1)
 
         for idx in sorted(delete_ongoing, reverse=True):
             self.gdcon.delete_row(self.ongoing, idx, 2)
