@@ -102,7 +102,7 @@ class GDocsUpdater(rm.RunMonitor):
                     project = 'Unknown, please check!'
                 if "{}_{}".format(id,project) not in skiplist:
                     application, tp = '',''#self.lookup_project(project)
-                    run_projects.append([id,project,application,tp,'',data.get('Run mode',[''])[0]])
+                    run_projects.append([id,project,application,tp,'','',data.get('Run mode',[''])[0]])
 
         return run_projects
         
@@ -163,7 +163,7 @@ class GDocsUpdater(rm.RunMonitor):
         trello_coming = self.reshape_run_info(self.coming_runs(), ["{}_{}".format(r[0],r[1]) for r in gdocs_finished + gdocs_ongoing + gdocs_coming])
         # Get the ongoing runs from Trello but exclude runs that are already in the finished or ongoing tab
         trello_ongoing = self.reshape_run_info(self.ongoing_runs(), ["{}_{}".format(r[0],r[1]) for r in gdocs_finished + gdocs_ongoing])
-        
+
         # Add each coming run to the next empty row
         for run in trello_coming:
             self.update_empty_row(self.coming,run,COMING_HEADER_OFFSET)
@@ -205,7 +205,25 @@ class GDocsUpdater(rm.RunMonitor):
                 
                 print("{} - {}{}".format(run[1],"{} - ".format(run[3]) if len(run[3]) > 0 else "",run[4]))
                 print("{}{}\n".format("{}\n".format(run[2]) if len(run[2]) > 0 else "",run[0]))
-            
+
+        delete_ongoing = []
+        delete_finished = []
+        for idx, row in enumerate(self.gdcon.get_cell_content(self.ongoing)):
+            if row[4] in ["Cancelled", "Finished"]:
+                row_updated = self.update_empty_row(self.finished, row, FINISHED_HEADER_OFFSET)
+                if row_updated:
+                    delete_ongoing.append(idx + 1)
+        for idx, row in enumerate(self.gdcon.get_cell_content(self.finished)):
+            if row[4] in ["On Hold", "Ongoing"]:
+                row_updated = self.update_empty_row(self.ongoing, row, ONGOING_HEADER_OFFSET)
+                if row_updated:
+                    delete_finished.append(idx + 1)
+
+        for idx in sorted(delete_ongoing, reverse=True):
+            self.gdcon.delete_row(self.ongoing, idx, 2)
+        for idx in sorted(delete_finished, reverse=True):
+            self.gdcon.delete_row(self.finished, idx, 2)
+
     def update_empty_row(self, wsheet, data, offset, merged=False):
         """Update the next empty row after the specified offset with the supplied data
         """
