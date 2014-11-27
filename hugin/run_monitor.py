@@ -312,3 +312,14 @@ class RunMonitor(Monitor):
             if len(empty) > 0 or not card.description:
                 metadata = self.get_run_metadata(run)
                 self.set_description(card,metadata,False)
+
+    def check_finish_status(self):
+        """Get the runs in given list and check if the transfer is dont to UPPMAX"""
+        from hugin.project_monitor import ProjectMonitor
+        pm = ProjectMonitor(self.config)
+        uppmax_list = self.trello.get_list(self.trello_board,UPPMAX)
+        # Only this two heys are required fo rthe purpose of this method
+        runs = [ {'name':card.name,'flowcell_id':card.name.split("_")[-1][1:]} for card in uppmax_list.list_cards() ]
+        for run in runs:
+            if pm.get_run_status(run):
+                self.set_run_completed(run)
