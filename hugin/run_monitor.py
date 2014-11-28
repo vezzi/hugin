@@ -317,9 +317,18 @@ class RunMonitor(Monitor):
         """Get the runs in given list and check if the transfer is dont to UPPMAX"""
         from hugin.project_monitor import ProjectMonitor
         pm = ProjectMonitor(self.config)
+        pm.samplesheet_folders = []
         uppmax_list = self.trello.get_list(self.trello_board,UPPMAX)
-        # Only these two keys are required for the purpose of this method
-        runs = [ {'name':card.name,'flowcell_id':card.name.split("_")[-1][1:]} for card in uppmax_list.list_cards() ]
+        runs = []
+        # Gathering required keys for the purpose of this method
+        for card in uppmax_list.list_cards():
+            run = {}
+            run['name'] = card.name
+            run['path'] = os.path.join(pm.archive_folders,run['name'])
+            run['flowcell_id'] = card.name.split("_")[-1][1:]
+            run['date'] = card.name.split("_")[0]
+            run['position'] = card.name.split("_")[-1][0]
+            runs.extand(run)
         for run in runs:
             if pm.get_run_status(run):
                 self.set_run_completed(run)
