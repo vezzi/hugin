@@ -328,7 +328,7 @@ class RunMonitor(Monitor):
             run['flowcell_id'] = card.name.split("_")[-1][1:]
             run['date'] = card.name.split("_")[0]
             run['position'] = card.name.split("_")[-1][0]
-            runs.extand(run)
+            runs.append(run)
         for run in runs:
             if pm.get_run_status(run):
                 self.set_run_completed(run)
