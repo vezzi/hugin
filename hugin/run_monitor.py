@@ -322,13 +322,14 @@ class RunMonitor(Monitor):
         runs = []
         # Gathering required keys for the purpose of this method
         for card in uppmax_list.list_cards():
-            run = {}
-            run['name'] = card.name
-            run['path'] = os.path.join(pm.archive_folders,run['name'])
-            run['flowcell_id'] = card.name.split("_")[-1][1:]
-            run['date'] = card.name.split("_")[0]
-            run['position'] = card.name.split("_")[-1][0]
-            runs.append(run)
+            run_name = card.name
+            miseq = True if re.search(r'-',run_name.split('_')[-1]) else False
+            runs.append({
+                'name' : run_name,
+                'path' : os.path.join(self.config.get('archive_folders'),run_name),
+                'date' : run_name.split("_")[0],
+                'position' : run_name.split("_")[-1][0] if not miseq else '',
+                'flowcell_id' : run_name.split("_")[-1][1:] if not miseq else run_name.split("_")[-1]})
         for run in runs:
             if pm.get_run_status(run):
                 self.set_run_completed(run)
