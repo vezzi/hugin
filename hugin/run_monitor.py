@@ -318,7 +318,7 @@ class RunMonitor(Monitor):
         from hugin.project_monitor import ProjectMonitor
         pm = ProjectMonitor(self.config)
         uppmax_list = self.trello.get_list(self.trello_board,UPPMAX)
-        # Only this two heys are required fo rthe purpose of this method
+        # Only these two keys are required for the purpose of this method
         runs = [ {'name':card.name,'flowcell_id':card.name.split("_")[-1][1:]} for card in uppmax_list.list_cards() ]
         for run in runs:
             if pm.get_run_status(run):
