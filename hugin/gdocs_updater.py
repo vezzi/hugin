@@ -34,7 +34,8 @@ class GDocsUpdater(rm.RunMonitor):
         self.ongoing = self.gdcon.get_worksheet("Ongoing")
         self.coming = self.gdcon.get_worksheet("Coming")
         self.finished = self.gdcon.get_worksheet("Finished")
-        assert self.ongoing and self.coming and self.finished, "Could not get 'Ongoing', 'Finished' and 'Coming' worksheets from '{}'. Please make sure that they exist".format(doc)
+        assert(self.ongoing and self.coming and self.finished,
+                "Could not get 'Ongoing', 'Finished' and 'Coming' worksheets from '{}'. Please make sure that they exist".format(doc))
         
         # Get a connection to the StatusDB project database
         dbconf = self.config.get("statusdb",{})
@@ -99,7 +100,7 @@ class GDocsUpdater(rm.RunMonitor):
                 p = [p]
             for project in p:
                 if len(project) == 0:
-                    project = 'Unknown, please check!'
+                    continue
                 if "{}_{}".format(id,project) not in skiplist:
                     application, tp = '',''#self.lookup_project(project)
                     run_projects.append([id,project,application,tp,'','',data.get('Run mode',[''])[0]])
@@ -160,9 +161,11 @@ class GDocsUpdater(rm.RunMonitor):
         gdocs_finished = self.gdocs_finished_runs()
         gdocs_ongoing = self.gdocs_ongoing_runs()
         gdocs_coming = self.gdocs_coming_runs()
-        trello_coming = self.reshape_run_info(self.coming_runs(), ["{}_{}".format(r[0],r[1]) for r in gdocs_finished + gdocs_ongoing + gdocs_coming])
+        trello_coming = self.reshape_run_info(self.coming_runs(),
+                ["{}_{}".format(r[0],r[1]) for r in gdocs_finished + gdocs_ongoing + gdocs_coming])
         # Get the ongoing runs from Trello but exclude runs that are already in the finished or ongoing tab
-        trello_ongoing = self.reshape_run_info(self.ongoing_runs(), ["{}_{}".format(r[0],r[1]) for r in gdocs_finished + gdocs_ongoing])
+        trello_ongoing = self.reshape_run_info(self.ongoing_runs(),
+                ["{}_{}".format(r[0],r[1]) for r in gdocs_finished + gdocs_ongoing])
 
         # Add each coming run to the next empty row
         for run in trello_coming:
