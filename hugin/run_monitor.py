@@ -270,10 +270,9 @@ class RunMonitor(Monitor):
         if self.instruments:
             instrument_data = self.instruments.get(instrument, '')
             if instrument_data:
-                #instrument has a comma separated value: name,IP,source_nas
-                name, ip, nas = instrument_data.split(',')
-                instrument += " ({name}) - {ip}, comming from {nas}".format(name=name,
-                                                                            ip=ip, nas=nas)
+                #instrument has a comma separated value: name,source_nas
+                name, nas = instrument_data.split(',')
+                instrument += " ({name}), comming from {nas}".format(name=name, nas=nas)
         metadata['Instrument'] = instrument
         metadata['Date'] = run['run_info'].get('Date','NA')
         metadata['Run mode'] = run['run_parameters'].get('RunMode','HighOutput' if not self.is_miseq_run(run) else 'MiSeq')
