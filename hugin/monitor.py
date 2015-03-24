@@ -3,8 +3,10 @@ import re
 import csv
 import glob
 import datetime
-from scilifelab.illumina.hiseq import HiSeqSampleSheet
-from scilifelab.bcbio.qc import RunInfoParser, RunParametersParser
+from hugin.parser import HiSeqSampleSheet
+from hugin.parser import RunInfoParser, RunParametersParser
+
+
 from hugin.trello_utils import TrelloUtils
 import smtplib
 from email.mime.text import MIMEText

@@ -1,10 +1,9 @@
-
 import os
 import hugin.run_monitor as rm
-from scilifelab.db.statusdb import ProjectSummaryConnection
-from scilifelab.db import ConnectionError
-from scilifelab.google.google_docs import SpreadSheet
-from scilifelab.google import get_credentials 
+from statusdb.db.connections import ProjectSummaryConnection
+from statusdb.db import ConnectionError
+from hugin.gdocs.google_docs import SpreadSheet
+from hugin.gdocs import get_credentials
 
 # The row where the actual user-entered data starts in the worksheets
 ONGOING_HEADER_OFFSET = 4
@@ -34,8 +33,7 @@ class GDocsUpdater(rm.RunMonitor):
         self.ongoing = self.gdcon.get_worksheet("Ongoing")
         self.coming = self.gdcon.get_worksheet("Coming")
         self.finished = self.gdcon.get_worksheet("Finished")
-        assert(self.ongoing and self.coming and self.finished,
-                "Could not get 'Ongoing', 'Finished' and 'Coming' worksheets from '{}'. Please make sure that they exist".format(doc))
+        assert(self.ongoing and self.coming and self.finished, "Could not get 'Ongoing', 'Finished' and 'Coming' worksheets from '{}'. Please make sure that they exist".format(doc))
         
         # Get a connection to the StatusDB project database
         dbconf = self.config.get("statusdb",{})

@@ -8,8 +8,8 @@ from hugin.run_monitor import RunMonitor
 import mock
 import time
 import datetime
-import scilifelab.illumina as illumina
-from scilifelab.bcbio.qc import FlowcellRunMetricsParser
+#import scilifelab.illumina as illumina
+from hugin.parser import FlowcellRunMetricsParser
         
 class TestRunMonitor(unittest.TestCase):
     
