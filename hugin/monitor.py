@@ -3,8 +3,7 @@ import re
 import csv
 import glob
 import datetime
-from hugin.parser import HiSeqSampleSheet
-from hugin.parser import RunInfoParser, RunParametersParser
+
 
 
 from hugin.trello_utils import TrelloUtils
@@ -35,43 +34,13 @@ class Monitor(object):
                 
         return cards
     
-    def list_runs(self):
-        """Get a list of folders matching the run folder pattern"""
-        pattern = r'(\d{6})_([SNMD]+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
-        runs = []
-        for dump_folder in self.run_folders:
-            for fname in os.listdir(dump_folder):
-                if not os.path.isdir(os.path.join(dump_folder,fname)):
-                    continue
-                m = re.match(pattern, fname)
-                if m is not None:
-                    run = {'name': fname,
-                           'path': os.path.join(dump_folder,fname),
-                           'date': m.group(1),
-                           'instrument': m.group(2),
-                           'position': m.group(3),
-                           'flowcell_id': m.group(4),
-                           'short_name': "{}_{}{}".format(m.group(1),m.group(3),m.group(4))}
-                    run['technology'] = 'MiSeq' if self.is_miseq_run(run) else 'HiSeq'
-                    run['run_info'] = self.get_run_info(run)
-                    run['run_parameters'] = self.get_run_parameters(run)
-                    run['samplesheet'] = self.get_run_samplesheet(run)
-                    run['projects'] = self.get_run_projects(run)
-                    # Don't track MiSeq runs that are not production, qc or applications
-                    if self.is_miseq_run(run) and len([d for d in self.get_samplesheet_descriptions(run) if d.lower() in ["qc","production","applications"]]) == 0:
-                        continue
-                    runs.append(run)
-        return runs
 
+    #this needs to disappear
     def is_miseq_run(self, run):
         """Determine whether this is a MiSeq run, from the flowcell-id format
-        """
+            """
         return not run['flowcell_id'].endswith("XX")
 
-    def get_samplesheet_descriptions(self, run):
-        """Return the set of descriptions in the samplesheet"""
-        ss = run['samplesheet']
-        return list(set([s['Description'] for s in ss])) if ss else []
 
     def get_run_info(self, run):
         """Parse the RunInfo.xml file into a dict"""
@@ -93,20 +62,6 @@ class Monitor(object):
             runparameters = rpp.parse(fh)
         return runparameters
     
-    def get_run_samplesheet(self, run):
-        """Locate and parse the samplesheet for a run"""
-        
-        fname = "{}.csv".format(run.get("flowcell_id","SampleSheet"))
-        ssheet = None
-        for folder in self.samplesheet_folders + [run.get("path","")]:
-            f = os.path.join(folder,fname)
-            if os.path.exists(f):
-                ssheet = f
-                break
-        if ssheet is None:
-            return None
-        
-        return HiSeqSampleSheet(ssheet)
  
     def get_run_projects(self, run):
         """Locate and parse the samplesheet to extract projects in the run"""

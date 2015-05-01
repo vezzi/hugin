@@ -7,29 +7,24 @@ import datetime
 import platform
 
 from hugin.monitor import Monitor
+from hugin.Runs.HiSeq_Runs import HiSeq_Run
+from hugin.Runs.HiSeqX_Runs import HiSeqX_Run
 
-FIRSTREAD = "First read"
-INDEXREAD = "Index read"
-SECONDREAD = "Second read"
-PROCESSING = "Processing"
-UPPMAX = "Sent to Uppmax"
-COMPLETED = "Handed over"
-STALLED = "Check status"
-ABORTED = "Aborted"
 
-PER_CYCLE_MINUTES = {'RapidRun': 12,
-                     'HighOutput': 100,
-                     'RapidHighOutput': 43,
-                     'MiSeq': 6}
+ABORTED        = "Aborted"         # something went wrong in the FC
+CHECKSTATUS    = "Check status"    # demultiplex failure
+SEQUENCING     = "Sequencing"      # under sequencing
+DEMULTIPLEXING = "Demultiplexing"  # under demultiplexing
+TRANFERRING    = "Transferring"    # tranferring to HPC resource
+NOSYNC         = "Nosync"          # moved to no sync folder
+ARCHIVED       = "Archived"        # archived to long term storage
 
-DAYS_TO_KEEP = 45
 
 class RunMonitor(Monitor):
 
     def __init__(self, config):
         super(RunMonitor, self).__init__(config)
         self.trello_board = self.trello.get_board(config.get("trello",{}).get("run_tracking_board",None),True)
-        self.trello_board_archive = self.trello.get_board(config.get("trello",{}).get("run_tracking_board_archive",None),True)
         assert self.trello_board is not None, "Could not locate run tracking board in Trello"
         self.run_folders = [d.strip() for d in config.get("run_folders","").split(",")]
         self.samplesheet_folders = [d.strip() for d in config.get("samplesheet_folders","").split(",")]
@@ -43,7 +38,7 @@ class RunMonitor(Monitor):
             return
 
         td = datetime.timedelta(seconds=DAYS_TO_KEEP*24*60*60)
-        completed_cards = self.list_trello_cards([ABORTED,COMPLETED])
+        completed_cards = self.list_trello_cards([ABORTED,ARCHIVED])
         archived = False
         for card in completed_cards.values():
             date = self.description_to_dict(card.description).get("Date")
@@ -64,7 +59,10 @@ class RunMonitor(Monitor):
             self.trello.sort_lists_on_board(self.trello_board_archive, key=self._chronologically)
             for lst in self.trello_board_archive.all_lists():
                 self.trello.sort_cards_on_list(lst)
-
+    
+    
+    
+    #needs some changes
     def set_run_completed(self, run):
         """Set the status of the run to completed"""
         card = self.trello.get_card_on_board(self.trello_board,run['name'])
@@ -170,21 +168,55 @@ class RunMonitor(Monitor):
 
         return status, due
 
-    def update_trello_board(self):
-        """Update the Trello board based on the contents of the run folder
+
+    def _sequencer_type(self, run_id):
+        """Returns the sequencer type based on the run folder name
+        contains ST-       --> is a Xten
+        ends with XX       --> is a HiSeq
+        contians 000000000 --> is a MiSeq
         """
-        # Don't update the card if it is in any of these lists
-        skip_list_ids = [self.trello.get_list_id(self.trello_board,COMPLETED),
-                         self.trello.get_list_id(self.trello_board,ABORTED)]
+        pattern = r'(\d{6})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
+        m = re.match(pattern, run_id)
+        instrument  = m.group(2)
+        flowcell_id = m.group(4)
+        if instrument.startswith("ST-"):
+            return "HiSeqX"
+        if flowcell_id.endswith("XX"):
+            return "HiSeq"
+        if flowcell_id.startwith("000000000"):
+            return "MiSeq"
+
+    def update_trello_board(self):
+        """
+            Update the Trello board based on the contents of the run folder
+            
+        """
         updated = False
-        runs = self.list_runs()
+        
+        #Step 1: colllect all runs in run folder
+        runs = []
+        for dump_folder in self.run_folders:
+            for fname in os.listdir(dump_folder):
+                if not os.path.isdir(os.path.join(dump_folder,fname)):
+                    continue
+                #I have a run folder, I need to get the type and create it
+                run_type = self._sequencer_type(fname)
+                if run_type is "HiSeqX":
+                    runs.append(HiSeqX_Run(os.path.join(dump_folder,fname), self.samplesheet_folders ))
+                if run_type is "HiSeq" or run_type is "MiSeq":
+                    runs.append(HiSeq_Run(os.path.join(dump_folder,fname), self.samplesheet_folders ))
+    
+        #Step 2: upadte runs found in run folder accordingly to their status
+        for run in runs:
+            print("Processing run {}".format(run.name))
+            #check if this is a new run or if it is already in the trallo board
+            run.get_run_status()
+        
+        
+        #step 3: parse all runs in Trello and update their status (with the expcetion of...)
+        
         for run in runs:
             print("Processing run {}".format(run['name']))
-
-            # check if the run has already been archived and if so, skip it
-            if self.trello_board_archive and self.trello.get_card_on_board(self.trello_board_archive,run['name']):
-                print("run {} is archived, skipping".format(run['name']))
-                continue
 
             card = self.trello.get_card_on_board(self.trello_board,run['name'])
             if card is not None and card.list_id in skip_list_ids:
@@ -223,33 +255,6 @@ class RunMonitor(Monitor):
             for lst in self.trello_board.all_lists():
                 self.trello.sort_cards_on_list(lst)
 
-    def update_trello_project_board(self):
-        """Update the project cards for projects in ongoing runs
-        """
-
-        skip_list_ids = [self.trello.get_list_id(self.trello_board,COMPLETED),
-                         self.trello.get_list_id(self.trello_board,ABORTED)]
-
-        from hugin.project_monitor import ProjectMonitor
-        pm = ProjectMonitor(self.config)
-        runs = self.list_runs()
-        for run in runs:
-
-            # check if the run has already been archived and if so, skip it
-            if self.trello_board_archive and self.trello.get_card_on_board(self.trello_board_archive,run['name']):
-                print("run {} is archived, skipping".format(run['name']))
-                continue
-
-            # check if the run is in a list that should be skipped
-            card = self.trello.get_card_on_board(self.trello_board,run['name'])
-            if card and card.list_id in skip_list_ids:
-                print("run {} is in list {}, skipping".format(run['name'],card.list_id))
-                continue
-
-            projects = self.get_run_projects(run)
-            for project in projects:
-                print("Adding run {} to project {}".format(run['name'],project))
-                pm.add_run_to_project(project,run)
 
     def send_status_notification(self, run, status, users=[]):
         """Send an email notification that a run has been moved to a list

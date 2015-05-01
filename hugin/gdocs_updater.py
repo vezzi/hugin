@@ -34,13 +34,16 @@ class GDocsUpdater(rm.RunMonitor):
         self.coming = self.gdcon.get_worksheet("Coming")
         self.finished = self.gdcon.get_worksheet("Finished")
         assert(self.ongoing and self.coming and self.finished, "Could not get 'Ongoing', 'Finished' and 'Coming' worksheets from '{}'. Please make sure that they exist".format(doc))
-        
+
+
         # Get a connection to the StatusDB project database
         dbconf = self.config.get("statusdb",{})
         try:
-            self.pcon = ProjectSummaryConnection(url=dbconf.get("url","localhost"), 
-                                                 username=dbconf.get("user","user"), 
-                                                 password=dbconf.get("password","pass"))
+            self.pcon = ProjectSummaryConnection(url=dbconf.get("url",None),
+                                                 username=dbconf.get("username",None),
+                                                 password=dbconf.get("password",None),
+                                                 port=dbconf.get("port",5984),
+                                                 conf = dbconf.get("conf", None))
         except ConnectionError:
             self.pcon = None
         
@@ -73,7 +76,8 @@ class GDocsUpdater(rm.RunMonitor):
                  rm.SECONDREAD,
                  rm.PROCESSING,
                  rm.UPPMAX,
-                 rm.STALLED]
+                 rm.STALLED,
+                 rm.Sequencing]
         return self._list_runs(lists)
         
         
@@ -108,8 +112,6 @@ class GDocsUpdater(rm.RunMonitor):
     def lookup_project(self, project):
         """Lookup project application and type in StatusDB"""
         
-        application = ""
-        type = ""
         if self.pcon:
             pdoc = self.pcon.get_entry(project)
             if pdoc:
@@ -154,7 +156,8 @@ class GDocsUpdater(rm.RunMonitor):
         return run_projects.values()
         
     def update_gdocs(self):
-        
+        import pdb
+        pdb.set_trace()
         # Get the coming runs from Trello but Exclude runs that are already in gdocs
         gdocs_finished = self.gdocs_finished_runs()
         gdocs_ongoing = self.gdocs_ongoing_runs()
