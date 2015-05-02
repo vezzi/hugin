@@ -46,13 +46,13 @@ class HiSeqX_Run(Run):
             return os.path.join(self.path, "Demultiplexing")
         return None
 
-    def _is_demultiplexing_started(self)
+    def _is_demultiplexing_started(self):
         if os.path.exists(os.path.join(self.path, "Demultiplexing")):
             return True
         else:
             return False
 
-    def _is_demultiplexing_done(self)
+    def _is_demultiplexing_done(self):
         if os.path.exists(os.path.join(self.path, 'Demultiplexing', 'Stats', 'DemultiplexingStats.xml')):
             return True
         else:

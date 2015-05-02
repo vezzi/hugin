@@ -3,7 +3,9 @@ import re
 import csv
 import glob
 import datetime
+import platform
 from hugin.parser import CycleTimes
+
 
 
 ABORTED        = "Aborted"         # something went wrong in the FC
@@ -99,8 +101,6 @@ class Run(object):
         """
             return the status of the run, that is the trello card where it needs to be placed
         """
-        import pdb
-        pdb.set_trace()
         demux_dir       = self._get_demux_dir()             # if this is not None status is Demultiplexing or Tranferring or CheckStatus
         demux_started   = self._is_demultiplexing_started() # if true status is Demultiplexing or Tranferring or CheckStatus
         demux_done      = self._is_demultiplexing_done()    # if true status needs to be put to Tranferring
@@ -117,6 +117,9 @@ class Run(object):
                 return CHECKSTATUS #demultiplexing is taking more than 8 hours, likely it failed
             else:
                 return DEMULTIPLEXING
+        elif sequencing_done and not demux_started:
+            #special case, sequencing is done but the demux is not yet started, card will be updated at next iteration
+            return SEQUENCING
         elif not sequencing_done:
             #Sequencing is ongoing but I need to check that everything is ok looking from last cycle to now
             last_cycle_time         = self.get_sequencing_done_time()
@@ -130,7 +133,7 @@ class Run(object):
         
 
 
-    def _is_demultiplexing_done(self)
+    def _is_sequencing_done(self):
         if os.path.exists(os.path.join(self.path, 'RTAComplete.txt')):
             return True
         else:
@@ -144,11 +147,41 @@ class Run(object):
             return self.cycles[-1][0]
 
     def get_sequencing_done_time(self):
-        if seld.cycles is not None:
+        if self.cycles is not None:
             return self.cycles[-1][2]
 
 
 
+    def get_run_metadata(self, instruments):
+        metadata             = {}
+        metadata['Projects'] = self.projects
+        metadata['Setup']    = self.get_run_setup()
+        metadata['Flowcell'] = self.run_info.get('Flowcell','NA')
+        instrument           = self.instrument
+        instrument_data      = instruments.get(instrument, '')
+        if instrument_data:
+            #instrument has a comma separated value: name,source_nas
+            name, nas = instrument_data.split(',')
+            instrument += " ({name}), coming from {nas}".format(name=name, nas=nas)
+        metadata['Instrument'] = instrument
+        metadata['Date']     =  self.run_info.get('Date','NA')
+        metadata['Run mode'] =  self.run_mode
+        metadata['Processed in'] = platform.node()
+        return metadata
+
+    def get_run_setup(self):
+        reads = self.run_info.get('Reads',[])
+        read_cycles = [r.get('NumCycles','?') for r in reads if r.get('IsIndexedRead','N') == 'N']
+        index_cycles = [r.get('NumCycles','?') for r in reads if r.get('IsIndexedRead','N') == 'Y']
+        nreads = len(read_cycles)
+        nindex = len(index_cycles)
+        
+        c = list(set(read_cycles))
+        if len(c) == 1:
+            setup = "{}x{}".format(str(nreads),c[0])
+        else:
+            setup = ",".join(c)
+        return setup
 
 
 
