@@ -1,0 +1,1 @@
+http://github.com/Scilifelab/flowcell_parser/tarball/master#egg=flowcell_parser
