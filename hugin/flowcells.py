@@ -179,7 +179,12 @@ class HiseqXFlowcell(Flowcell):
     def due_time(self):
         if self.status.status == FC_STATUSES['SEQUENCING']:
             return self._sequencing_end_time()
-        return None
+        elif self.status.status == FC_STATUSES['DEMULTIPLEXING']:
+            return self._demultiplexing_end_time()
+        elif self.status.status == FC_STATUSES['TRANFERRING']:
+            return self._transfering_end_time()
+        else:
+            raise NotImplementedError('Unknown status: {}. End time for the status not implemented'.format(self.status.status))
 
     @property
     def number_of_cycles(self):
@@ -218,6 +223,9 @@ class HiseqXFlowcell(Flowcell):
         # todo: returns the wrong name
         return self.run_info['Flowcell']
 
+    @property
+    def server(self):
+        return socket.gethostname()
 
     def check_status(self):
         if self.status.status == FC_STATUSES['SEQUENCING']:
@@ -244,7 +252,7 @@ class HiseqXFlowcell(Flowcell):
     #     return self.status.status
 
     def _sequencing_end_time(self):
-        if not self.cycle_times:
+        if self.cycle_times is None:
             start_time = self.status.sequencing_started
             # todo duration depending on the run mode!
             duration = CYCLE_DURATION['HiSeqX'] * self.number_of_cycles
@@ -257,6 +265,11 @@ class HiseqXFlowcell(Flowcell):
 
     def _transfering_end_time(self):
         start_time = self.status.transfering_started
+        return start_time + DURATIONS['TRANSFERING']
+
+    def _demultiplexing_end_time(self):
+        start_time = self.status.demultiplexing_started
+        return start_time + DURATIONS['DEMULTIPLEXING']
 
 
     def _check_sequencing(self):
@@ -276,9 +289,9 @@ class HiseqXFlowcell(Flowcell):
                 self.status = FC_STATUSES['CHECKSTATUS']
         else:
             current_time = datetime.datetime.now()
-            # todo: compare with CYCLE_DURATION
-            # todo: how to define the last change?
-            raise NotImplementedError('CycleTimes.txt is not present. Extend {}.check_status()'.format(self.__class__.__name__))
+            if current_time > self._sequencing_end_time():
+                self._warning = 'Sequencing lasts too long. Check status'
+                self.status = FC_STATUSES['CHECKSTATUS']
         return self.status.status
 
 
