@@ -159,6 +159,35 @@ class HiseqXFlowcell(Flowcell):
         # call run_parameters from the base class
         return Flowcell.run_parameters.fget(self)['Setup']
 
+    @property
+    def average_cycle_time(self):
+        if self.cycle_times:
+            sum_duration = datetime.timedelta(0)
+            for cycle in self.cycle_times:
+                duration = cycle['end'] - cycle['start']
+                sum_duration += duration
+
+            if len(self.cycle_times) < 10:
+                # todo: depending on RunMode
+                average_duration = CYCLE_DURATION['HiSeqX']
+            else:
+                average_duration = sum_duration / len(self.cycle_times)
+            return average_duration
+        return None
+
+    @property
+    def due_time(self):
+        if self.status.status == FC_STATUSES['SEQUENCING']:
+            return self._sequencing_end_time()
+        return None
+
+    @property
+    def number_of_cycles(self):
+        number_of_cycles = 0
+        for read in self.run_info['Reads']:
+            number_of_cycles += int(read['NumCycles'])
+        return number_of_cycles
+
     def get_formatted_description(self):
         print self.name
         description = """
@@ -197,65 +226,60 @@ class HiseqXFlowcell(Flowcell):
             return self._check_demultiplexing()
         elif self.status.status == FC_STATUSES['TRANFERRING']:
             return self._check_transferring()
+    #
+    # # todo: this is how it should be implemented
+    # def _check_sequencing_properly(self):
+    #     if self.cycle_times and len(self.cycle_times) > 5:
+    #         average_duration = self.cycle_times.average_duration
+    #         last_cycle = self.cycle_times.last
+    #         last_change = last_cycle.end or last_cycle.start # if it's not over yet
+    #         current_time = datetime.datetime.now()
+    #         last_cycle_duration = current_time - last_change
+    #         if last_cycle_duration > average_duration + datetime.timedelta(hours=1):
+    #             self._warning = "Cycle {} lasts too long. Flowcell status: {}".format(last_cycle['cycle_number'], self.status.status)
+    #             self.status = FC_STATUSES['CHECKSTATUS']
+    #     else:
+    #         # todo: last_change?
+    #         pass
+    #     return self.status.status
 
-    # todo: this is how it should be implemented
-    def _check_sequencing_properly(self):
-        if self.cycle_times and len(self.cycle_times) > 5:
-            average_duration = self.cycle_times.average_duration
-            last_cycle = self.cycle_times.last
-            last_change = last_cycle.end or last_cycle.start # if it's not over yet
-            current_time = datetime.datetime.now()
-            last_cycle_duration = current_time - last_change
-            if last_cycle_duration > average_duration + datetime.timedelta(hours=1):
-                self._warning = "Cycle {} lasts too long. Flowcell status: {}".format(last_cycle['cycle_number'], self.status.status)
-                self.status = FC_STATUSES['CHECKSTATUS']
+    def _sequencing_end_time(self):
+        if not self.cycle_times:
+            start_time = self.status.sequencing_started
+            # todo duration depending on the run mode!
+            duration = CYCLE_DURATION['HiSeqX'] * self.number_of_cycles
+            end_time = start_time + duration
         else:
-            # todo: last_change?
-            pass
-        return self.status.status
+            duration = self.average_cycle_time * self.number_of_cycles
+            start_time = self.cycle_times[0]['start']
+            end_time = start_time + duration
+        return end_time
 
+    def _transfering_end_time(self):
+        start_time = self.status.transfering_started
 
 
     def _check_sequencing(self):
-        # todo: return warning message, but not True/False
         if self.status.status != FC_STATUSES['SEQUENCING']:
             return self.status.status
 
-        if self.cycle_times:
-            sum_duration = datetime.timedelta(0)
-            for cycle in self.cycle_times:
-                duration = cycle['end'] - cycle['start']
-                sum_duration += duration
-
-            if len(self.cycle_times) < 10:
-                # todo: depending on RunMode
-                average_duration = CYCLE_DURATION['HiSeqX']
-            else:
-                average_duration = sum_duration / len(self.cycle_times)
-
-            number_of_cycles = 0
-            for read in self.run_info['Reads']:
-                number_of_cycles += int(read['NumCycles'])
-
-            # sum_duration = average_duration * number_of_cycles
-
-            # todo: the difference between the last record from cycle_times and datetime.now compare with average duration
+        if self.cycle_times and len(self.cycle_times) > 5:
+            average_duration = self.average_cycle_time
+            last_cycle = self.cycle_times[-1]
+            last_change = last_cycle['end'] or last_cycle['start']  # if cycle has not finished yet, take start time
             current_time = datetime.datetime.now()
 
-            last_cycle = self.cycle_times[-1]
-            # if cycle has not finished yet, take start time
-            last_change = last_cycle['end'] or last_cycle['start']
             current_duration = current_time - last_change
+
             if current_duration > average_duration + datetime.timedelta(hours=1):
-                self._warning = "Cycle {} lasts too long. Flowcell status: {}".format(last_cycle['cycle_number'], 'Sequencing')
-                return self._warning
-            else:
-                return None
+                self._warning = "Cycle {} lasts too long. Flowcell status: {}".format(last_cycle['cycle_number'], self.status.status)
+                self.status = FC_STATUSES['CHECKSTATUS']
         else:
             current_time = datetime.datetime.now()
             # todo: compare with CYCLE_DURATION
             # todo: how to define the last change?
             raise NotImplementedError('CycleTimes.txt is not present. Extend {}.check_status()'.format(self.__class__.__name__))
+        return self.status.status
 
 
     def _check_demultiplexing(self):

@@ -78,8 +78,11 @@ class FlowcellMonitor(object):
             status = FlowcellStatus(flowcell_path)
             # depending on the type, return instance of related class (hiseq, hiseqx, miseq, etc)
             flowcell = Flowcell.init_flowcell(status)
+            print flowcell.due_time
+
             if flowcell.check_status() == FC_STATUSES['CHECKSTATUS']:
                 # todo: add comment
+                # todo: if comment has been added
                 pass
             # update flowcell on trello board
             self._update_card(flowcell)
@@ -141,7 +144,7 @@ class FlowcellMonitor(object):
         if not trello_list:
             raise RuntimeError('List {} cannot be found in TrelloBoard {}'.format(flowcell.status, self.trello_board))
 
-        trello_card = trello_list.add_card(name=flowcell.full_name, desc=flowcell.get_formatted_description())
+        trello_card = trello_list.add_card(name=flowcell.full_name, desc=flowcell.get_formatted_description(), due=flowcell.due_time)
         if flowcell.list == FC_STATUSES['CHECKSTATUS']:
             trello_card.comment(flowcell.status.warning)
 

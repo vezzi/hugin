@@ -17,7 +17,8 @@ class FlowcellStatus(object):
     def __init__(self, flowcell_path):
         self._path = flowcell_path
 
-        # statuses
+        # a timestamp when the status has changed
+        self._sequencing_started    = None
         self._sequencing_done       = None
         self._demultiplexing_done   = None
         self._transfering_done      = None
@@ -75,6 +76,12 @@ class FlowcellStatus(object):
     @property
     def path(self):
         return self._path
+
+    @property
+    def sequencing_started(self):
+        if self._sequencing_started is None:
+            self._sequencing_started = datetime.datetime.fromtimestamp(os.path.getctime(self.path))
+        return self._sequencing_started
 
     @property
     def sequencing_done(self):
