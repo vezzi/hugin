@@ -234,22 +234,6 @@ class HiseqXFlowcell(Flowcell):
             return self._check_demultiplexing()
         elif self.status.status == FC_STATUSES['TRANFERRING']:
             return self._check_transferring()
-    #
-    # # todo: this is how it should be implemented
-    # def _check_sequencing_properly(self):
-    #     if self.cycle_times and len(self.cycle_times) > 5:
-    #         average_duration = self.cycle_times.average_duration
-    #         last_cycle = self.cycle_times.last
-    #         last_change = last_cycle.end or last_cycle.start # if it's not over yet
-    #         current_time = datetime.datetime.now()
-    #         last_cycle_duration = current_time - last_change
-    #         if last_cycle_duration > average_duration + datetime.timedelta(hours=1):
-    #             self._warning = "Cycle {} lasts too long. Flowcell status: {}".format(last_cycle['cycle_number'], self.status.status)
-    #             self.status = FC_STATUSES['CHECKSTATUS']
-    #     else:
-    #         # todo: last_change?
-    #         pass
-    #     return self.status.status
 
     def _sequencing_end_time(self):
         if self.cycle_times is None:
@@ -300,8 +284,8 @@ class HiseqXFlowcell(Flowcell):
             current_time = datetime.datetime.now()
             duration = current_time - self.status.demultiplexing_started
             if duration > DURATIONS['DEMULTIPLEXING']:
-                self._warning = "Demultiplexing takes too long. Started: {}".format(self.status.demultiplexing_started)
-                self.status = FC_STATUSES['CHECKSTATUS']
+                self.status.warning = "Demultiplexing takes too long. Started: {}".format(self.status.demultiplexing_started)
+                self.status.check_status = FC_STATUSES['CHECKSTATUS']
         return self.status.status
 
     def _check_transferring(self):
@@ -319,83 +303,3 @@ class HiseqXFlowcell(Flowcell):
                 self._cycle_times = CycleTimesParser(cycle_times_path).cycles
         return self._cycle_times
 
-# class HiseqRun(Run):
-#     def __init__(self, flowcell_dir):
-#         super(HiseqRun, self).__init__(flowcell_dir)
-#
-#     @property
-#     def name(self):
-#         # todo: if 'Flowcell' not in RunInfo?
-#         return self.run_info.get('Flowcell')
-#
-#
-#
-#
-# class MiseqRun(Run):
-#     def __init__(self, flowcell_dir):
-#         super(MiseqRun, self).__init__(flowcell_dir)
-#
-#     @property
-#     def name(self):
-#         # todo: if 'Flowcell' not in RunInfo?
-#         return self.run_info['Flowcell']
-#
-#     @property
-#     def chemistry(self):
-#         return self.run_parameters['Chemistry']
-#
-#     @property
-#     def formatted_reads(self):
-#         # get number of cycles for all reads if read is NOT index
-#         reads = [read['NumCycles'] for read in self.run_info['Reads'] if read['IsIndexedRead'] != 'Y']
-#
-#         # if only one read
-#         if len(reads) == 1:
-#             return reads[0]
-#         # if all values are the same
-#         elif len(set(reads)) == 1:
-#             return "{}x{}".format(len(reads), reads[0])
-#         # if there are different values
-#         else:
-#             # '/' will separate the values
-#             return "/".join(reads)
-#
-#     @property
-#     def formatted_index(self):
-#         # get number of cycles for all reads if read IS index
-#         indices = [read['NumCycles'] for read in self.run_info['Reads'] if read['IsIndexedRead'] == 'Y']
-#
-#         # if only one index
-#         if len(indices) == 1:
-#             return indices[0]
-#         # if more than one index and all values are the same
-#         elif len(set(indices)) == 1:
-#             return "{}x{}".format(len(indices), indices[0])
-#         # if there are different values
-#         else:
-#             return "/".join(read for read in indices)
-#
-#
-#     def get_formatted_description(self):
-#         description = """
-#     Date: {date}
-#     Flowcell: {flowcell}
-#     Instrument: {instrument}
-#     Preprocessing server: {localhost}
-#     Lanes: {lanes}
-#     Tiles: {tiles}
-#     Reads: {reads}
-#     Indices: {index}
-#     Chemistry: {chemistry}
-#         """.format(
-#                     date=self.run_info['Date'],
-#                     flowcell=self.run_info['Flowcell'],
-#                     instrument=self.run_info['Instrument'],
-#                     localhost=socket.gethostname(),
-#                     lanes=self.run_info['FlowcellLayout']['LaneCount'],
-#                     tiles=self.run_info['FlowcellLayout']['TileCount'],
-#                     reads=self.formatted_reads,
-#                     index=self.formatted_reads,
-#                     chemistry=self.chemistry,
-#         )
-#         return description

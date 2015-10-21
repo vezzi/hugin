@@ -1,6 +1,8 @@
 import os
 import datetime
 
+from flowcell_parser.classes import CycleTimesParser
+
 # flowcell statuses
 FC_STATUSES =  {
     'ABORTED'       : "Aborted",         # something went wrong in the FC
@@ -8,17 +10,29 @@ FC_STATUSES =  {
     'SEQUENCING'    : "Sequencing",      # under sequencing
     'DEMULTIPLEXING': "Demultiplexing",  # under demultiplexing
     'TRANFERRING'   : "Transferring",    # tranferring to HPC resource
-    'NOSYNC'        : "Nosync",
-    'ARCHIVED'      : 'Archived',
+    'NOSYNC'        : "Nosync",          # in nosync folder
+    'ARCHIVED'      : 'Archived',        # removed from nosync folder
 }
 
+
+CYCLE_DURATION = {
+    'RapidRun'          : datetime.timedelta(minutes=12),
+    'HighOutput'        : datetime.timedelta(minutes=100),
+    'RapidHighOutput'   : datetime.timedelta(minutes=43),
+    'MiSeq'             : datetime.timedelta(minutes=6),
+    'HiSeqX'            : datetime.timedelta(minutes=10),
+}
+
+DURATIONS = {
+    'DEMULTIPLEXING'    : datetime.timedelta(hours=4),
+    'TRANSFERING'       : datetime.timedelta(hours=12)
+}
 
 class FlowcellStatus(object):
     def __init__(self, flowcell_path):
         self._path = flowcell_path
 
-        # a timestamp when the status has changed
-        self._sequencing_started    = None
+        # statuses
         self._sequencing_done       = None
         self._demultiplexing_done   = None
         self._transfering_done      = None
@@ -30,10 +44,13 @@ class FlowcellStatus(object):
         self.demux_file = "./Demultiplexing/Stats/ConversionStats.xml"
         self.demux_dir = "./Demultiplexing"
         self.transfering_file = "~.logs/transfer.tsv"
+        self.cycle_times_file = "Logs/CycleTimes.txt"
 
         self._status = None
         # message if status is 'CHECKSTATUS'
         self._warning = None
+
+        self._check_status = None
 
     @property
     def status(self):
@@ -47,21 +64,19 @@ class FlowcellStatus(object):
                 self._status = FC_STATUSES['DEMULTIPLEXING']
             else:
                 self._status = FC_STATUSES['SEQUENCING']
-
-            # elif self.sequencing_done and not self.demultiplexing_started:
-            #     self._status = FC_STATUSES['CHECKSTATUS']
-            #     self._warning = "Sequencing done, demultiplexing not started"
-            #
-            # elif self._demultiplexing_done and not self.transfering_started:
-            #     self._status = FC_STATUSES['CHECKSTATUS']
-            #     self._warning = "Demultiplexing done, transfering not started"
-            #
-            # elif not self.sequencing_done:
-            #     self._status = FC_STATUSES['SEQUENCING']
-            # else:
-            #     raise RuntimeError('Status undefined. Think more, you developer!')
-
         return self._status
+
+    @status.setter
+    def status(self, value):
+        self._status = value
+
+    @property
+    def check_status(self):
+        return self._check_status
+
+    @check_status.setter
+    def check_status(self, value):
+        self._check_status = value
 
     @property
     def nosync(self):
@@ -73,15 +88,13 @@ class FlowcellStatus(object):
     def warning(self):
         return self._warning
 
+    @warning.setter
+    def warning(self, value):
+        self._warning = value
+
     @property
     def path(self):
         return self._path
-
-    @property
-    def sequencing_started(self):
-        if self._sequencing_started is None:
-            self._sequencing_started = datetime.datetime.fromtimestamp(os.path.getctime(self.path))
-        return self._sequencing_started
 
     @property
     def sequencing_done(self):
@@ -124,4 +137,60 @@ class FlowcellStatus(object):
             if os.path.exists(transfering_file):
                 self._transfering_started = datetime.datetime.fromtimestamp(os.path.getctime(transfering_file))
         return self._transfering_started
+
+    @property
+    def demultiplexing_end_time(self):
+        if self.status == FC_STATUSES['DEMULTIPLEXING']:
+            return self.demultiplexing_started + DURATIONS['DEMULTIPLEXING']
+        else: return None
+
+    @property
+    def transferring_end_time(self):
+        if self.status == FC_STATUSES['TRANFERRING']:
+            return self.transfering_started + DURATIONS['TRANSFERING']
+        else: return None
+
+    # def _sequencing_end_time(self):
+    #     if self.cycle_times is None:
+    #         start_time = self.sequencing_started
+    #         # todo duration depending on the run mode!
+    #         duration = CYCLE_DURATION['HiSeqX'] * self.number_of_cycles
+    #         end_time = start_time + duration
+    #     else:
+    #         duration = self.average_cycle_time * self.number_of_cycles
+    #         start_time = self.cycle_times[0]['start']
+    #         end_time = start_time + duration
+    #     return end_time
+    #
+    # @property
+    # def sequencing_end_time(self):
+    #     if self.cycle_times and len(self.cycle_times) > 5:
+    #
+    #         if self.cycle_times and len(self.cycle_times) > 5:
+    #             average_duration = self.average_cycle_time
+    #             last_cycle = self.cycle_times[-1]
+    #             last_change = last_cycle['end'] or last_cycle['start']  # if cycle has not finished yet, take start time
+    #             current_time = datetime.datetime.now()
+    #
+    #             current_duration = current_time - last_change
+    #             end_time = self.sequencing_started + average_duration *
+    #
+    #         else:
+    #             current_time = datetime.datetime.now()
+    #             # todo: run_mode
+    #             run_mode = 'HiSeqX'
+    #             if current_time > DURATIONS[run_mode]:
+    #                 self.status.warning = 'Sequencing takes too long!'
+    #                 self.status = FC_STATUSES['CHECKSTATUS']
+    #
+    #
+    #
+    #
+    # @property
+    # def cycle_times(self):
+    #     if self._cycle_times is None:
+    #         cycle_times_path = os.path.join(self.path, self.cycle_times_file)
+    #         if os.path.exists(cycle_times_path):
+    #             self._cycle_times = CycleTimesParser(cycle_times_path).cycles
+    #     return self._cycle_times
 
