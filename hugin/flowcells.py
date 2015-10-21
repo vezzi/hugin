@@ -180,9 +180,9 @@ class HiseqXFlowcell(Flowcell):
         if self.status.status == FC_STATUSES['SEQUENCING']:
             return self._sequencing_end_time()
         elif self.status.status == FC_STATUSES['DEMULTIPLEXING']:
-            return self._demultiplexing_end_time()
+            return self.status.demultiplexing_end_time
         elif self.status.status == FC_STATUSES['TRANFERRING']:
-            return self._transfering_end_time()
+            return self.status.transfering_end_time
         else:
             raise NotImplementedError('Unknown status: {}. End time for the status not implemented'.format(self.status.status))
 
@@ -193,8 +193,81 @@ class HiseqXFlowcell(Flowcell):
             number_of_cycles += int(read['NumCycles'])
         return number_of_cycles
 
+    @property
+    def name(self):
+        # todo: returns the wrong name
+        return self.run_info['Flowcell']
+
+    @property
+    def server(self):
+        return socket.gethostname()
+
+    @property
+    def cycle_times(self):
+        if self._cycle_times is None:
+            cycle_times_path = os.path.join(self.path, 'Logs/CycleTimes.txt')
+            if os.path.exists(cycle_times_path):
+                # todo: CycleTimesParser fails when no file found
+                self._cycle_times = CycleTimesParser(cycle_times_path).cycles
+        return self._cycle_times
+
+    def check_status(self):
+        if self.status.status == FC_STATUSES['SEQUENCING']:
+            return self._check_sequencing()
+        elif self.status.status == FC_STATUSES['DEMULTIPLEXING']:
+            return self._check_demultiplexing()
+        elif self.status.status == FC_STATUSES['TRANFERRING']:
+            return self._check_transferring()
+
+    def _check_demultiplexing(self):
+        if self.status.status == FC_STATUSES['DEMULTIPLEXING']:
+            current_time = datetime.datetime.now()
+            if self.status.demultiplexing_end_time > current_time + datetime.timedelta(hours=1):
+                self.status.warning = "Demultiplexing takes too long"
+                self.status.check_status = True
+        return self.status.check_status
+
+    def _check_transferring(self):
+        if self.status.status == FC_STATUSES['TRANFERRING']:
+            current_time = datetime.datetime.now()
+            if self.status.transfering_end_time > current_time + datetime.timedelta(hours=1):
+                self.status.warning = "Transferring takes too long"
+                self.status.check_status = True
+        return self.status.check_status
+
+    def _check_sequencing(self):
+        if self.status.status == FC_STATUSES['SEQUENCING']:
+            current_time = datetime.datetime.now()
+            if self.cycle_times and len(self.cycle_times) > 5:
+                average_duration = self.average_cycle_time
+                last_cycle = self.cycle_times[-1]
+                last_change = last_cycle['end'] or last_cycle['start']  # if cycle has not finished yet, take start time
+
+                current_duration = current_time - last_change
+
+                if current_duration > average_duration + datetime.timedelta(hours=1):
+                    self.status.warning = "Cycle {} lasts too long.".format(last_cycle['cycle_number'])
+                    self.status.check_status = True
+            else:
+                if current_time > self._sequencing_end_time():
+                    self.status.warning = 'Sequencing lasts too long. Check status'
+                    self.status.check_status = True
+        return self.status.check_status
+
+    def _sequencing_end_time(self):
+        if self.cycle_times is None:
+            start_time = self.status.sequencing_started
+            # todo duration depending on the run mode!
+            duration = CYCLE_DURATION['HiSeqX'] * self.number_of_cycles
+            end_time = start_time + duration
+        else:
+            duration = self.average_cycle_time * self.number_of_cycles
+            start_time = self.cycle_times[0]['start']
+            end_time = start_time + duration
+        return end_time
+
+
     def get_formatted_description(self):
-        print self.name
         description = """
     Date: {date}
     Flowcell: {flowcell}
@@ -217,89 +290,4 @@ class HiseqXFlowcell(Flowcell):
                 chemistry=self.chemistry,
         )
         return description
-
-    @property
-    def name(self):
-        # todo: returns the wrong name
-        return self.run_info['Flowcell']
-
-    @property
-    def server(self):
-        return socket.gethostname()
-
-    def check_status(self):
-        if self.status.status == FC_STATUSES['SEQUENCING']:
-            return self._check_sequencing()
-        elif self.status.status == FC_STATUSES['DEMULTIPLEXING']:
-            return self._check_demultiplexing()
-        elif self.status.status == FC_STATUSES['TRANFERRING']:
-            return self._check_transferring()
-
-    def _sequencing_end_time(self):
-        if self.cycle_times is None:
-            start_time = self.status.sequencing_started
-            # todo duration depending on the run mode!
-            duration = CYCLE_DURATION['HiSeqX'] * self.number_of_cycles
-            end_time = start_time + duration
-        else:
-            duration = self.average_cycle_time * self.number_of_cycles
-            start_time = self.cycle_times[0]['start']
-            end_time = start_time + duration
-        return end_time
-
-    def _transfering_end_time(self):
-        start_time = self.status.transfering_started
-        return start_time + DURATIONS['TRANSFERING']
-
-    def _demultiplexing_end_time(self):
-        start_time = self.status.demultiplexing_started
-        return start_time + DURATIONS['DEMULTIPLEXING']
-
-
-    def _check_sequencing(self):
-        if self.status.status != FC_STATUSES['SEQUENCING']:
-            return self.status.status
-
-        if self.cycle_times and len(self.cycle_times) > 5:
-            average_duration = self.average_cycle_time
-            last_cycle = self.cycle_times[-1]
-            last_change = last_cycle['end'] or last_cycle['start']  # if cycle has not finished yet, take start time
-            current_time = datetime.datetime.now()
-
-            current_duration = current_time - last_change
-
-            if current_duration > average_duration + datetime.timedelta(hours=1):
-                self._warning = "Cycle {} lasts too long. Flowcell status: {}".format(last_cycle['cycle_number'], self.status.status)
-                self.status = FC_STATUSES['CHECKSTATUS']
-        else:
-            current_time = datetime.datetime.now()
-            if current_time > self._sequencing_end_time():
-                self._warning = 'Sequencing lasts too long. Check status'
-                self.status = FC_STATUSES['CHECKSTATUS']
-        return self.status.status
-
-
-    def _check_demultiplexing(self):
-        if self.status.status == FC_STATUSES['DEMULTIPLEXING']:
-            current_time = datetime.datetime.now()
-            duration = current_time - self.status.demultiplexing_started
-            if duration > DURATIONS['DEMULTIPLEXING']:
-                self.status.warning = "Demultiplexing takes too long. Started: {}".format(self.status.demultiplexing_started)
-                self.status.check_status = FC_STATUSES['CHECKSTATUS']
-        return self.status.status
-
-    def _check_transferring(self):
-        if self.status.status == FC_STATUSES['TRANFERRING']:
-            # todo: check when transfering has started
-            duration = DURATIONS['TRANSFERING']
-            return False
-
-    @property
-    def cycle_times(self):
-        if self._cycle_times is None:
-            cycle_times_path = os.path.join(self.path, 'Logs/CycleTimes.txt')
-            if os.path.exists(cycle_times_path):
-                # todo: CycleTimesParser fails when no file found
-                self._cycle_times = CycleTimesParser(cycle_times_path).cycles
-        return self._cycle_times
 
