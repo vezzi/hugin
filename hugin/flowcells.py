@@ -34,7 +34,9 @@ class Flowcell(object):
 
     @property
     def list(self):
-        return self.status.status
+        if self.status.check_status:
+            return FC_STATUSES['CHECKSTATUS']
+        else: return self.status.status
 
 
     @property

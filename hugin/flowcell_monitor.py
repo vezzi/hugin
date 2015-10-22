@@ -78,7 +78,7 @@ class FlowcellMonitor(object):
             status = FlowcellStatus(flowcell_path)
             # depending on the type, return instance of related class (hiseq, hiseqx, miseq, etc)
             flowcell = Flowcell.init_flowcell(status)
-            if flowcell.check_status() == FC_STATUSES['CHECKSTATUS']:
+            if flowcell.check_status():
                 # todo: add comment
                 # todo: if comment has been added
                 pass
