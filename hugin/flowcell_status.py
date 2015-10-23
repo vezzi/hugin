@@ -51,6 +51,7 @@ class FlowcellStatus(object):
         # message if status is 'CHECKSTATUS'
         self._warning = None
 
+        # flag if the flowcell has the same status too long
         self._check_status = None
 
     @property
@@ -125,7 +126,7 @@ class FlowcellStatus(object):
     def transfering_done(self):
         if self._transfering_done is None:
             if self.transfering_started:
-                # todo!
+                # todo: moved to nosync
                 pass
         return self._transfering_done
 

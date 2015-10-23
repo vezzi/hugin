@@ -8,6 +8,19 @@ from flowcell_status import FlowcellStatus, FC_STATUSES
 
 FC_NAME_RE = r'(\d{6})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
 
+COLORS = [
+    'red',
+    'blue',
+    'green',
+    'yellow',
+    'orange',
+    'purple',
+    'lime',
+    'black',
+    'pink',
+    'sky'
+]
+
 class FlowcellMonitor(object):
 
     def __init__(self, config):
@@ -102,7 +115,7 @@ class FlowcellMonitor(object):
                     flowcell = Flowcell.init_flowcell(status)
                     self._update_card(flowcell)
                 else:
-                    self._move_card(card, FC_STATUSES['NOSYNC'])
+                    card.change_list(self._get_list_by_name(FC_STATUSES['NOSYNC']))
 
     def _check_archived_flowcells(self, data_folder):
         # if nosync folder exists
@@ -114,7 +127,8 @@ class FlowcellMonitor(object):
                 if localhost in card.description:
                     # check if the flowcell has been deleted from the nosync folder
                     if card.name not in os.listdir(os.path.join(data_folder, FC_STATUSES['NOSYNC'].lower())):
-                        self._move_card(card, FC_STATUSES['ARCHIVED'])
+                        # todo: check if change_list(list) or change_list(list.id)
+                        card.change_list(self._get_list_by_name(FC_STATUSES['ARCHIVED']))
 
     def _update_card(self, flowcell):
         # todo: beautify the method
@@ -152,6 +166,24 @@ class FlowcellMonitor(object):
         trello_card = trello_list.add_card(name=flowcell.full_name, desc=flowcell.get_formatted_description())
         if flowcell.list == FC_STATUSES['CHECKSTATUS']:
             trello_card.comment(flowcell.status.warning)
+        trello_card.set_due(flowcell.due_time)
+        self._add_label(trello_card, flowcell)
+
+    def _add_label(self, card, flowcell):
+        server = flowcell.server
+        label = self._get_label_by_name(server)
+        if label is None:
+            color = self._get_next_color()
+            label = self.trello_board.add_label(name=server, color=color)
+        if label.id not in [label.id for label in card.labels]:
+            card.add_label(label)
+
+    def _get_label_by_name(self, name):
+        labels = self.trello_board.get_labels()
+        for label in labels:
+            if label.name == name:
+                return label
+        return None
 
     def _get_list_by_name(self, list_name):
         for item in self.trello_lists:
@@ -173,13 +205,32 @@ class FlowcellMonitor(object):
             if card.name == card_name:
                 return card
 
-    def _move_card(self, card, list_name):
-        new_list = self._get_list_by_name(list_name)
-        new_list.add_card(name=card.name, desc=card.description)
-        card.delete()
-
     def _get_trello_card(self, flowcell):
         for card in self.trello_cards:
             if flowcell.full_name == card.name:
                 return card
         return None
+
+    def _get_next_color(self):
+        labels = self.trello_board.get_labels()
+        colors = [label.color for label in labels] if labels else []
+        # if all colors are used take the first one
+        if colors == COLORS:
+            return COLORS[0]
+
+        # if not all the colors are used, take the one which is not used
+        elif set(colors) != set(COLORS):
+            for color in COLORS:
+                if color not in colors:
+                    return color
+
+        # if set(colors) == set(COLORS):
+        else:
+            # otherwise take the color which is used the least
+            color_groups = {} # how many times each color has been used already
+            for color in COLORS:
+                color_groups[color] = colors.count(color)
+
+            for color, count in color_groups:
+                if count == min(color_groups.values()):
+                    return color

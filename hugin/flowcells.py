@@ -53,6 +53,8 @@ class Flowcell(object):
     def status(self, value):
         if value in FC_STATUSES.items():
             self.status.status = value
+        else:
+            raise AttributeError('Status {} cannot be found. Please Update FlowcellStatus.FC_STATUSES'.format(value))
 
     @property
     def run_info(self):
