@@ -134,7 +134,8 @@ class FlowcellStatus(object):
 	@property
 	def transfering_started(self):
 		if self._transfering_started is None:
-			command = "{ls} {path}".format(path=config['transfering']['path'])
+			pass
+			# command = "{ls} {path}".format(path=config['transfering']['path'])
 			# proc = subprocess.Popen(['ssh', '-t', '{}@{}' %(config['user'], server_url), command],
 
 			# transfering_file = os.path.join(self.path, self.transfering_file)
