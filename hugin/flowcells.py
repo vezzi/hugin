@@ -29,32 +29,18 @@ class Flowcell(object):
         self._cycle_times = None
 
     @property
-    def status(self):
-        return self._status
-
-    @property
-    def list(self):
-        if self.status.check_status:
-            return FC_STATUSES['CHECKSTATUS']
-        else: return self.status.status
-
-
-    @property
     def path(self):
         return self._status.path
 
     @property
-    def id(self):
-        if self._id is None:
-            self._id =  os.path.basename(self.path)
-        return self._id
+    def status(self):
+        return self._status
 
-    @status.setter
-    def status(self, value):
-        if value in FC_STATUSES.items():
-            self.status.status = value
-        else:
-            raise AttributeError('Status {} cannot be found. Please Update FlowcellStatus.FC_STATUSES'.format(value))
+    @property
+    def trello_list(self):
+        if self.status.check_status:
+            return FC_STATUSES['CHECKSTATUS']
+        else: return self.status.status
 
     @property
     def run_info(self):
@@ -74,10 +60,6 @@ class Flowcell(object):
                 raise RuntimeError('runParameters.xml cannot be found in {}'.format(self.path))
             self._run_parameters = RunParametersParser(run_parameters_path).data['RunParameters']
         return  self._run_parameters
-
-    @property
-    def cycle_time(self):
-        raise NotImplementedError('Flowcell.cycle_times must be implemented in {}'.format(self.__class__.__name__))
 
     @property
     def name(self):
@@ -109,18 +91,28 @@ class Flowcell(object):
             else:
                 raise RuntimeError("Unrecognized runtype {} of run {}. Someone as likely bought a new sequencer without telling it to the bioinfo team".format(runtype, flowcell_dir))
 
-    def get_formatted_description(self):
-        raise NotImplementedError('get_formatted_description() must be implemented in {}'.format(self.__class__.__name__))
-
 
 class HiseqXFlowcell(Flowcell):
     def __init__(self, status):
         super(HiseqXFlowcell, self).__init__(status)
 
-
     @property
     def full_name(self):
         return os.path.basename(self.status.path)
+
+    @property
+    def cycle_times(self):
+        if self._cycle_times is None:
+            cycle_times_path = os.path.join(self.path, 'Logs/CycleTimes.txt')
+            if os.path.exists(cycle_times_path):
+                # todo: CycleTimesParser fails when no file found
+                self._cycle_times = CycleTimesParser(cycle_times_path).cycles
+        return self._cycle_times
+
+    @property
+    def name(self):
+        # todo: returns the wrong name
+        return self.run_info['Flowcell']
 
     @property
     def formatted_reads(self):
@@ -162,7 +154,7 @@ class HiseqXFlowcell(Flowcell):
         # dangerous
         # call run_parameters from the base class
         return Flowcell.run_parameters.fget(self)['Setup']
-
+    #
     @property
     def average_cycle_time(self):
         if self.cycle_times:
@@ -198,22 +190,9 @@ class HiseqXFlowcell(Flowcell):
         return number_of_cycles
 
     @property
-    def name(self):
-        # todo: returns the wrong name
-        return self.run_info['Flowcell']
-
-    @property
     def server(self):
         return socket.gethostname()
 
-    @property
-    def cycle_times(self):
-        if self._cycle_times is None:
-            cycle_times_path = os.path.join(self.path, 'Logs/CycleTimes.txt')
-            if os.path.exists(cycle_times_path):
-                # todo: CycleTimesParser fails when no file found
-                self._cycle_times = CycleTimesParser(cycle_times_path).cycles
-        return self._cycle_times
 
     def check_status(self):
         if self.status.status == FC_STATUSES['SEQUENCING']:
@@ -295,3 +274,9 @@ class HiseqXFlowcell(Flowcell):
         )
         return description
 
+class MiSeq(Flowcell):
+    pass
+
+
+class HiSeq(Flowcell):
+    pass
