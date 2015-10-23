@@ -22,7 +22,6 @@ COLORS = [
 ]
 
 class FlowcellMonitor(object):
-
     def __init__(self, config):
         self._config = config
         # initialize None values for @property functions
@@ -190,7 +189,6 @@ class FlowcellMonitor(object):
             if item.name == list_name:
                 return item
         return None
-
 
     def _get_cards_by_list(self, list_name):
         trello_list = self._get_list_by_name(list_name)
