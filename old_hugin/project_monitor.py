@@ -1,10 +1,10 @@
-
 import os
 import glob
 import datetime
 import re
-from hugin.monitor import Monitor
-    
+
+from old_hugin.monitor import Monitor
+
 RUN_PROCESS_STEPS = ["bcbb analysis started",
                      "bcbb analysis completed"
                      ]
@@ -180,7 +180,7 @@ class ProjectMonitor(Monitor):
         """Update the status of runs on the run tracking board"""
         
         # Create a RunMonitor object to update the run tracking board
-        from hugin.run_monitor import RunMonitor
+        from old_hugin.run_monitor import RunMonitor
         rm = RunMonitor(self.config)
         
         rm.run_folders = self.archive_folders

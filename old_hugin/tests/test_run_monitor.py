@@ -1,16 +1,17 @@
 import unittest
 import tempfile
 import os
-import yaml
 import shutil
-import trello
-from hugin.run_monitor import RunMonitor
-import mock
 import time
 import datetime
+
+import yaml
+from hugin.run_monitor import RunMonitor
+import mock
+
+
 #import scilifelab.illumina as illumina
-from hugin.parser import FlowcellRunMetricsParser
-        
+
 class TestRunMonitor(unittest.TestCase):
     
     def setUp(self):

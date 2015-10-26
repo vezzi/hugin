@@ -1,9 +1,9 @@
-
 import argparse
-import yaml
 import os
 
-from hugin.project_monitor import ProjectMonitor
+import yaml
+from old_hugin.project_monitor import ProjectMonitor
+
 
 def monitor(config):
     pm = ProjectMonitor(config)

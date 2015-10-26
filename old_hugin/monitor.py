@@ -1,15 +1,10 @@
 import os
-import re
-import csv
-import glob
 import datetime
-
-
-
-from hugin.trello_utils import TrelloUtils
 import smtplib
 from email.mime.text import MIMEText
 import socket
+
+from old_hugin.trello_utils import TrelloUtils
 
 SENDER = "hugin@{}".format(socket.gethostname())
   

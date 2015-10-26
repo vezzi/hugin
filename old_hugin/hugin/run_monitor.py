@@ -1,14 +1,10 @@
-
 import os
 import re
-import csv
-import glob
 import datetime
 
-from hugin.monitor import Monitor
-from hugin.Runs.HiSeq_Runs  import HiSeq_Run
-from hugin.Runs.HiSeqX_Runs import HiSeqX_Run
-
+from old_hugin.hugin import Monitor
+from old_hugin.hugin import HiSeq_Run
+from old_hugin.hugin import HiSeqX_Run
 
 ABORTED        = "Aborted"         # something went wrong in the FC
 CHECKSTATUS    = "Check status"    # demultiplex failure

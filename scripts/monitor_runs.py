@@ -1,14 +1,12 @@
-
 import argparse
 import yaml
 import os
-
 from hugin.run_monitor import RunMonitor
 
 def monitor(config):
     rm = RunMonitor(config)
     rm.update_trello_board()
-    rm.update_trello_project_board()
+    rm.archive_cards()
 
 def main():
     parser = argparse.ArgumentParser(description="A script that will monitor specified run folders and update a Trello board as the status of runs change")
@@ -18,9 +16,8 @@ def main():
     assert os.path.exists(args.config), "Could not locate config file {}".format(args.config)
     with open(args.config) as fh:
         config = yaml.load(fh)
-    
     monitor(config)
-    
+
 if __name__ == "__main__":
     main()
-    
+
