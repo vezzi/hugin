@@ -7,8 +7,7 @@ import datetime
 from hugin.flowcell_status import FlowcellStatus, FC_STATUSES
 from hugin.flowcells import HiseqXFlowcell
 
-CURRENT_DIR = os.path.dirname(__file__)
-DEFAULT_CONFIG = os.path.join(CURRENT_DIR, "config.yaml")
+DEFAULT_CONFIG = "test_data/config.yaml"
 
 
 class TestHiSeqXFlowcells(unittest.TestCase):
@@ -17,7 +16,7 @@ class TestHiSeqXFlowcells(unittest.TestCase):
         with open(DEFAULT_CONFIG) as config:
             self.config = (yaml.load(config) or {})
 
-        self.data_folder = os.path.join(CURRENT_DIR, self.config.get('data_folders')[0])
+        self.data_folder = os.path.join('tests', self.config.get('data_folders')[0])
         self.fake_flowcell = os.path.join(self.data_folder, '151021_ST-E00144_0013_FAKE')
         if os.path.exists(self.fake_flowcell):
             shutil.rmtree(self.fake_flowcell)
@@ -44,7 +43,7 @@ class TestHiSeqXFlowcells(unittest.TestCase):
         run_info_path = os.path.join(self.data_folder, "RunInfo.xml")
         shutil.copy2(run_info_path, self.fake_flowcell)
 
-        due_date = datetime.datetime(2015, 8, 28, 3, 0, 51, 405770)
+        due_date =  datetime.datetime(2015, 10, 9, 3, 10, 23, 707830)
 
         fc_status = FlowcellStatus(self.fake_flowcell)
         fc = HiseqXFlowcell(fc_status)
